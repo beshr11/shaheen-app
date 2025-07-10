@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 
 // --- Main App Component ---
 export default function App() {
@@ -10,6 +10,14 @@ export default function App() {
     const [userId, setUserId] = useState(null);
     const [formData, setFormData] = useState({});
     const [isAuthReady, setIsAuthReady] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalTitle, setModalTitle] = useState('');
+    const [modalContent, setModalContent] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
+
+    // This variable is provided by the environment
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
     // --- Data Structure ---
     const ALL_MATERIALS = [
@@ -18,11 +26,11 @@ export default function App() {
     
     // --- Firebase Initialization and Auth ---
     useEffect(() => {
-        // Use the environment variable from Netlify, or a fallback for local dev
-        const firebaseConfigString = process.env.REACT_APP_FIREBASE_CONFIG || null;
+        const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         if (!firebaseConfigString) {
-            console.error("Firebase configuration is missing. Make sure to set REACT_APP_FIREBASE_CONFIG environment variable.");
+            console.error("Firebase configuration is missing.");
             return;
         }
 
@@ -38,7 +46,18 @@ export default function App() {
                     setUserId(user.uid);
                     setIsAuthReady(true);
                 } else {
-                    signInAnonymously(auth).catch(error => console.error("Anonymous sign-in failed:", error));
+                    const authenticate = async () => {
+                        try {
+                            if (initialAuthToken) {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                        } catch (error) {
+                            console.error("Authentication failed:", error);
+                        }
+                    };
+                    authenticate();
                 }
             });
         } catch (error) {
@@ -50,58 +69,208 @@ export default function App() {
     useEffect(() => {
         if (!isAuthReady || !db || !userId) return;
 
-        const docRef = doc(db, 'vouchers', userId); // Simplified path
+        const docRef = doc(db, 'artifacts', appId, 'users', userId, 'voucher', 'currentVoucher');
         const unsubscribe = onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
                 setFormData(docSnap.data());
             } else {
-                setDoc(docRef, {}); // Create if it doesn't exist
+                console.log("No such document! Creating a new one.");
+                setDoc(docRef, {});
             }
         }, (error) => {
             console.error("Firestore snapshot error:", error);
         });
         return () => unsubscribe();
-    }, [isAuthReady, db, userId]);
+    }, [isAuthReady, db, userId, appId]);
+
+    // --- Gemini API Call ---
+    const callGemini = async (prompt) => {
+        setIsLoading(true);
+        setModalContent('');
+        const apiKey = ""; // Handled by environment
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+
+        try {
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+            const result = await response.json();
+            if (result.candidates?.[0]?.content?.parts?.[0]) {
+                setModalContent(result.candidates[0].content.parts[0].text);
+            } else {
+                setModalContent("لم يتمكن الذكاء الاصطناعي من إنشاء رد.");
+            }
+        } catch (error) {
+            console.error("Error calling Gemini API:", error);
+            setModalContent(`حدث خطأ أثناء الاتصال بالذكاء الاصطناعي: ${error.message}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     // --- Handlers ---
     const handleInputChange = useCallback(async (key, value) => {
         const newFormData = { ...formData, [key]: value };
         setFormData(newFormData);
         if (db && userId) {
-            const docRef = doc(db, 'vouchers', userId);
+            const docRef = doc(db, 'artifacts', appId, 'users', userId, 'voucher', 'currentVoucher');
             await setDoc(docRef, newFormData, { merge: true });
         }
-    }, [formData, db, userId]);
+    }, [formData, db, userId, appId]);
 
     const clearForm = async () => {
         if (window.confirm("هل أنت متأكد أنك تريد مسح جميع البيانات وبدء سند جديد؟")) {
             setFormData({});
             if (db && userId) {
-                const docRef = doc(db, 'vouchers', userId);
+                const docRef = doc(db, 'artifacts', appId, 'users', userId, 'voucher', 'currentVoucher');
                 await setDoc(docRef, {});
             }
         }
     };
     
+    const generateReport = () => {
+        const projectName = formData['project-name'] || 'غير محدد';
+        const delivererName = formData['deliverer-name'] || 'غير محدد';
+        const recipientName = formData['recipient-name'] || 'غير محدد';
+        let itemsList = ALL_MATERIALS
+            .filter(item => formData[`quantity_${item.id}`] && Number(formData[`quantity_${item.id}`]) > 0)
+            .map(item => `- ${item.type}: (الكمية: ${formData[`quantity_${item.id}`]})`)
+            .join('\n');
+
+        if (!itemsList) {
+            alert("الرجاء إدخال كميات المواد أولاً.");
+            return;
+        }
+
+        const prompt = `
+            Generate a concise delivery report in Arabic. The report should be easy to copy and paste.
+            Use the following details:
+            - Title: تقرير تسليم شدات معدنية
+            - Project Name: ${projectName}
+            - Items Delivered:
+            ${itemsList}
+            
+            Structure the report with the title, project name, a clear list of items and their quantities.
+            At the end, include signature lines for "المسلِّم: ${delivererName}" and "المستلم: ${recipientName}".
+        `;
+        setModalTitle("✨ تقرير تسليم موجز");
+        setIsModalOpen(true);
+        callGemini(prompt);
+    };
+
+    const generateHandlingNotes = () => {
+        let itemsList = ALL_MATERIALS
+            .filter(item => formData[`quantity_${item.id}`] > 0)
+            .map(item => item.type)
+            .join(', ');
+
+        if (!itemsList) {
+            alert("الرجاء إدخال كميات المواد أولاً.");
+            return;
+        }
+
+        const prompt = `
+            Based on the following list of construction scaffolding materials, generate 3-4 important handling and storage recommendations in Arabic for the warehouse keeper and the recipient.
+            The materials are: ${itemsList}.
+            The recommendations should be practical and focus on safety and preventing damage. Format as a bulleted list.
+        `;
+        setModalTitle("✨ ملاحظات هامة للمناولة والتخزين");
+        setIsModalOpen(true);
+        callGemini(prompt);
+    };
+
+
     // --- Render ---
     return (
         <>
         <style>{`
-            @page { size: A4; margin: 1.2cm; }
+            /* General Styles */
+            body {
+                font-family: 'Tajawal', sans-serif;
+            }
+
+            /* Print-specific Styles - FORCED SINGLE A4 PAGE */
+            @page {
+                size: A4;
+                margin: 1cm;
+            }
+
             @media print {
-                html, body { width: 210mm; height: 297mm; margin: 0; padding: 0; }
-                body { background-color: #fff !important; font-size: 10pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                .no-print { display: none !important; }
-                .printable-area { width: 100%; height: 100%; box-shadow: none !important; margin: 0 !important; border: none !important; padding: 1cm !important; border-radius: 0 !important; display: flex; flex-direction: column; }
-                .printable-area > header, .printable-area > div, .printable-area > footer { flex-shrink: 0; }
-                .printable-area > .overflow-x-auto { flex-grow: 1; }
-                header, .mb-8, .overflow-x-auto { margin-bottom: 0.5rem !important; }
-                footer { margin-top: auto !important; padding-top: 1rem; page-break-inside: avoid; }
-                tr, td, th { page-break-inside: avoid; padding: 4px !important; }
-                h1 { font-size: 18pt !important; font-weight: bold; }
-                h2 { font-size: 15pt !important; font-weight: bold; }
-                h3 { font-size: 12pt !important; font-weight: bold; }
-                thead th { font-weight: bold; }
+                html, body {
+                    width: 210mm;
+                    height: 297mm;
+                    margin: 0;
+                    padding: 0;
+                    font-size: 9.5pt; /* Slightly smaller base font for print */
+                    background-color: #fff !important;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+
+                .no-print {
+                    display: none !important;
+                }
+
+                .printable-area {
+                    width: 100%;
+                    height: 100%;
+                    padding: 0 !important; /* Padding is handled by @page margin */
+                    margin: 0 !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    border-radius: 0 !important;
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .printable-area > * {
+                    flex-shrink: 0; /* Prevent sections from shrinking too much */
+                }
+
+                .printable-area .overflow-x-auto {
+                    flex-grow: 1; /* Allow table to fill remaining space */
+                }
+                
+                .printable-area header img {
+                     height: 5.5rem !important; /* Smaller logo for print */
+                     margin-bottom: 0.5rem !important;
+                }
+
+                .printable-area h1 { font-size: 18pt !important; font-weight: bold; margin-bottom: 0.1rem !important; }
+                .printable-area h2 { font-size: 14pt !important; font-weight: bold; margin-bottom: 0.5rem !important; }
+                .printable-area h3 { font-size: 11pt !important; font-weight: bold; }
+                
+                .printable-area .mb-8 {
+                     margin-bottom: 0.8rem !important;
+                }
+
+                .printable-area table {
+                    font-size: 9pt !important; /* Smaller table font */
+                }
+
+                .printable-area th, .printable-area td {
+                    padding: 3px !important; /* Tighter cell padding */
+                    page-break-inside: avoid;
+                }
+
+                .printable-area footer {
+                    margin-top: auto !important; /* Push footer to the bottom */
+                    padding-top: 0.5rem !important;
+                    page-break-before: avoid;
+                }
+                
+                .printable-area .signature-container {
+                    margin-bottom: 1rem !important;
+                }
+
+                .printable-area .signature-box {
+                     margin-top: 2rem !important; /* Reduced margin for signatures */
+                }
+                                
+                .printable-area .legal-note {
+                    margin-top: 1rem !important;
+                    padding-top: 0.5rem !important;
+                }
             }
         `}</style>
         <div dir="rtl" className="bg-gray-100 p-4 sm:p-8" style={{ fontFamily: "'Tajawal', sans-serif" }}>
@@ -113,10 +282,11 @@ export default function App() {
                 </header>
 
                 <div className="mb-8">
-                    <h2 className="text-xl sm:text-2xl font-bold text-blue-600 text-center mb-6">سند صرف بضاعة</h2>
+                    <h2 className="text-xl sm:text-2xl font-bold text-blue-600 text-center mb-6">سند تسليم الشدات المعدنية وملحقاتها</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <InputField label="الرقم:" id="doc-ref" value={formData['doc-ref'] || ''} onChange={handleInputChange} />
                         <InputField label="التاريخ:" id="delivery-date" type="date" value={formData['delivery-date'] || ''} onChange={handleInputChange} />
+                        <InputField label="اسم المسلِّم:" id="deliverer-name" value={formData['deliverer-name'] || ''} onChange={handleInputChange} />
                         <InputField label="اسم المستلم:" id="recipient-name" value={formData['recipient-name'] || ''} onChange={handleInputChange} />
                         <InputField label="اسم المشروع:" id="project-name" value={formData['project-name'] || ''} onChange={handleInputChange} />
                     </div>
@@ -142,28 +312,29 @@ export default function App() {
                 </div>
 
                 <footer className="mt-24 pt-8">
-                    <div className="flex flex-col md:flex-row justify-around items-stretch gap-12 mb-12">
+                    <div className="flex flex-col md:flex-row justify-around items-stretch gap-12 mb-12 signature-container">
                         <SignatureBox title="المسلِّم" />
                         <SignatureBox title="المستلم" />
                     </div>
-                    <div className="text-center mt-8 pt-8 border-t-2 border-dashed">
-                        <h3 className="font-bold text-lg text-gray-800 mb-2">إقرار الرئيس التنفيذي</h3>
-                        <p className="text-md text-gray-600 mb-4">أقر بصحة وكمال العدد المذكور أعلاه بعد المعاينة.</p>
-                        <p className="font-bold text-lg">بِشر شاهين</p>
-                        <div className="mt-12 pt-2 border-t-2 border-gray-400 w-1/2 mx-auto">
+                    <div className="text-center mt-8 pt-8 border-t-2 border-dashed ceo-signature">
+                        <h3 className="font-bold text-lg text-gray-800 mb-4">الرئيس التنفيذي: بِشر شاهين</h3>
+                        <div className="mt-12 pt-2 border-t-2 border-gray-400 w-1/2 mx-auto signature-box">
                            <p className="text-sm">التوقيع</p>
                        </div>
                    </div>
-                   <div className="text-center mt-8 pt-4 border-t border-gray-200">
-                        <p className="text-xs text-gray-500">هذه الورقة من حق الشركة الإحتفاظ بها والمطالبة بالعدة كاملة بالعدد كامل في حال النقص أو التلف.</p>
+                   <div className="text-center mt-8 pt-4 border-t border-gray-200 legal-note">
+                        <p className="text-xs text-gray-500">هذه الورقة من حق شركة أعمال الشاهين الإحتفاظ بها والمطالبة بالعدة كاملة بالعدد كامل, وفي حال النقص أو التلف يتم التعويض بسعر السوق الجديد للحديد.</p>
                     </div>
                 </footer>
             </div>
 
             <div className="max-w-4xl mx-auto text-center mt-6 no-print flex flex-wrap justify-center gap-4">
+                <button onClick={generateReport} className="bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-300 shadow-lg">إنشاء تقرير موجز</button>
+                <button onClick={generateHandlingNotes} className="bg-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-purple-700 focus:ring-4 focus:ring-purple-300 shadow-lg">توليد ملاحظات هامة</button>
                 <button onClick={clearForm} className="bg-red-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-700 focus:ring-4 focus:ring-red-300 shadow-lg">سند جديد</button>
                 <button onClick={() => window.print()} className="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 shadow-lg">طباعة السند</button>
             </div>
+            {isModalOpen && <GeminiModal title={modalTitle} content={modalContent} isLoading={isLoading} onClose={() => setIsModalOpen(false)} />}
         </div>
         </>
     );
@@ -190,6 +361,29 @@ const MaterialRow = ({ item, index, formData, onChange }) => (
 const SignatureBox = ({ title }) => (
     <div className="text-center flex-1">
         <h3 className="font-bold text-lg text-gray-800 mb-2">{title}</h3>
-        <div className="mt-12 pt-2 border-t-2 border-gray-400 w-full mx-auto"><p className="text-sm">التوقيع</p></div>
+        <div className="mt-12 pt-2 border-t-2 border-gray-400 w-full mx-auto signature-box"><p className="text-sm">التوقيع</p></div>
+    </div>
+);
+
+const GeminiModal = ({ title, content, isLoading, onClose }) => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 no-print">
+        <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl p-6">
+            <div className="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 className="text-xl font-bold text-gray-800">{title}</h3>
+                <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto">
+                {isLoading ? (
+                    <div className="flex justify-center items-center h-48">
+                        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
+                    </div>
+                ) : (
+                    <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">{content}</div>
+                )}
+            </div>
+            <div className="border-t pt-4 mt-4 flex justify-end">
+                <button onClick={onClose} className="bg-gray-200 text-gray-800 font-bold py-2 px-6 rounded-lg hover:bg-gray-300">إغلاق</button>
+            </div>
+        </div>
     </div>
 );
