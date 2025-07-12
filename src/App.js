@@ -10,11 +10,7 @@ export default function App() {
     const [userId, setUserId] = useState(null);
     const [formData, setFormData] = useState({});
     const [isAuthReady, setIsAuthReady] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalTitle, setModalTitle] = useState('');
-    const [modalContent, setModalContent] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-
+    const [isInvoiceView, setIsInvoiceView] = useState(false); // New state for invoice view
 
     // This variable is provided by the environment
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -26,8 +22,13 @@ export default function App() {
     
     // --- Firebase Initialization and Auth ---
     useEffect(() => {
-        // Use the environment-provided global variables
-        const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        let firebaseConfigString = null;
+        if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_FIREBASE_CONFIG) {
+            firebaseConfigString = process.env.REACT_APP_FIREBASE_CONFIG;
+        } else if (typeof __firebase_config !== 'undefined') {
+            firebaseConfigString = __firebase_config;
+        }
+
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         if (!firebaseConfigString) {
@@ -84,46 +85,6 @@ export default function App() {
         return () => unsubscribe();
     }, [isAuthReady, db, userId, appId]);
 
-    // --- Gemini API Call ---
-    const callGemini = async (prompt) => {
-        setIsLoading(true);
-        setModalContent('');
-        
-        // Use the environment-provided global variable for the API key
-        const apiKey = typeof __gemini_api_key__ !== 'undefined' ? __gemini_api_key__ : "";
-
-        if (!apiKey) {
-            const errorMsg = "مفتاح Gemini API غير موجود. يرجى التأكد من إعداده بشكل صحيح.";
-            console.error(errorMsg);
-            setModalContent(errorMsg);
-            setIsLoading(false);
-            return;
-        }
-
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-        const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-
-        try {
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) {
-                 const errorData = await response.json();
-                 console.error("API Error Response:", errorData);
-                 throw new Error(errorData.error.message || response.statusText);
-            }
-            const result = await response.json();
-            if (result.candidates?.[0]?.content?.parts?.[0]) {
-                setModalContent(result.candidates[0].content.parts[0].text);
-            } else {
-                setModalContent("لم يتمكن الذكاء الاصطناعي من إنشاء رد.");
-            }
-        } catch (error) {
-            console.error("Error calling Gemini API:", error);
-            setModalContent(`حدث خطأ أثناء الاتصال بالذكاء الاصطناعي: ${error.message}`);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     // --- Handlers ---
     const handleInputChange = useCallback(async (key, value) => {
         const newFormData = { ...formData, [key]: value };
@@ -137,65 +98,19 @@ export default function App() {
     const clearForm = async () => {
         if (window.confirm("هل أنت متأكد أنك تريد مسح جميع البيانات وبدء سند جديد؟")) {
             setFormData({});
+            setIsInvoiceView(false); // Reset view on new form
             if (db && userId) {
                 const docRef = doc(db, 'artifacts', appId, 'users', userId, 'voucher', 'currentVoucher');
                 await setDoc(docRef, {});
             }
         }
     };
+
+    // --- Filtered materials for invoice view ---
+    const displayedMaterials = isInvoiceView
+        ? ALL_MATERIALS.filter(item => formData[`quantity_${item.id}`] && Number(formData[`quantity_${item.id}`]) > 0)
+        : ALL_MATERIALS;
     
-    const generateReport = () => {
-        const projectName = formData['project-name'] || 'غير محدد';
-        const delivererName = formData['deliverer-name'] || 'غير محدد';
-        const recipientName = formData['recipient-name'] || 'غير محدد';
-        let itemsList = ALL_MATERIALS
-            .filter(item => formData[`quantity_${item.id}`] && Number(formData[`quantity_${item.id}`]) > 0)
-            .map(item => `- ${item.type}: (الكمية: ${formData[`quantity_${item.id}`]})`)
-            .join('\n');
-
-        if (!itemsList) {
-            alert("الرجاء إدخال كميات المواد أولاً.");
-            return;
-        }
-
-        const prompt = `
-            Generate a concise delivery report in Arabic. The report should be easy to copy and paste.
-            Use the following details:
-            - Title: تقرير تسليم شدات معدنية
-            - Project Name: ${projectName}
-            - Items Delivered:
-            ${itemsList}
-            
-            Structure the report with the title, project name, a clear list of items and their quantities.
-            At the end, include signature lines for "المسلِّم: ${delivererName}" and "المستلم: ${recipientName}".
-        `;
-        setModalTitle("✨ تقرير تسليم موجز");
-        setIsModalOpen(true);
-        callGemini(prompt);
-    };
-
-    const generateHandlingNotes = () => {
-        let itemsList = ALL_MATERIALS
-            .filter(item => formData[`quantity_${item.id}`] > 0)
-            .map(item => item.type)
-            .join(', ');
-
-        if (!itemsList) {
-            alert("الرجاء إدخال كميات المواد أولاً.");
-            return;
-        }
-
-        const prompt = `
-            Based on the following list of construction scaffolding materials, generate 3-4 important handling and storage recommendations in Arabic for the warehouse keeper and the recipient.
-            The materials are: ${itemsList}.
-            The recommendations should be practical and focus on safety and preventing damage. Format as a bulleted list.
-        `;
-        setModalTitle("✨ ملاحظات هامة للمناولة والتخزين");
-        setIsModalOpen(true);
-        callGemini(prompt);
-    };
-
-
     // --- Render ---
     return (
         <>
@@ -300,11 +215,11 @@ export default function App() {
                 <div className="mb-8">
                     <h2 className="text-xl sm:text-2xl font-bold text-blue-600 text-center mb-6">سند تسليم الشدات المعدنية وملحقاتها</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <InputField label="الرقم:" id="doc-ref" value={formData['doc-ref'] || ''} onChange={handleInputChange} />
-                        <InputField label="التاريخ:" id="delivery-date" type="date" value={formData['delivery-date'] || ''} onChange={handleInputChange} />
-                        <InputField label="اسم المسلِّم:" id="deliverer-name" value={formData['deliverer-name'] || ''} onChange={handleInputChange} />
-                        <InputField label="اسم المستلم:" id="recipient-name" value={formData['recipient-name'] || ''} onChange={handleInputChange} />
-                        <InputField label="اسم المشروع:" id="project-name" value={formData['project-name'] || ''} onChange={handleInputChange} />
+                        <InputField label="الرقم:" id="doc-ref" value={formData['doc-ref'] || ''} onChange={handleInputChange} readOnly={isInvoiceView} />
+                        <InputField label="التاريخ:" id="delivery-date" type="date" value={formData['delivery-date'] || ''} onChange={handleInputChange} readOnly={isInvoiceView} />
+                        <InputField label="اسم المسلِّم:" id="deliverer-name" value={formData['deliverer-name'] || ''} onChange={handleInputChange} readOnly={isInvoiceView} />
+                        <InputField label="اسم المستلم:" id="recipient-name" value={formData['recipient-name'] || ''} onChange={handleInputChange} readOnly={isInvoiceView} />
+                        <InputField label="اسم المشروع:" id="project-name" value={formData['project-name'] || ''} onChange={handleInputChange} readOnly={isInvoiceView} />
                     </div>
                 </div>
                 
@@ -320,8 +235,8 @@ export default function App() {
                             </tr>
                         </thead>
                         <tbody>
-                            {ALL_MATERIALS.map((item, index) => (
-                                <MaterialRow key={item.id} item={item} index={index} formData={formData} onChange={handleInputChange} />
+                            {displayedMaterials.map((item, index) => (
+                                <MaterialRow key={item.id} item={item} index={index} formData={formData} onChange={handleInputChange} readOnly={isInvoiceView} />
                             ))}
                         </tbody>
                     </table>
@@ -345,32 +260,32 @@ export default function App() {
             </div>
 
             <div className="max-w-4xl mx-auto text-center mt-6 no-print flex flex-wrap justify-center gap-4">
-                <button onClick={generateReport} className="bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-300 shadow-lg">إنشاء تقرير موجز</button>
-                <button onClick={generateHandlingNotes} className="bg-purple-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-purple-700 focus:ring-4 focus:ring-purple-300 shadow-lg">توليد ملاحظات هامة</button>
+                <button onClick={() => setIsInvoiceView(!isInvoiceView)} className="bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 focus:ring-4 focus:ring-orange-300 shadow-lg">
+                    {isInvoiceView ? 'العودة للتعديل' : 'إصدار فاتورة للطباعة'}
+                </button>
                 <button onClick={clearForm} className="bg-red-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-700 focus:ring-4 focus:ring-red-300 shadow-lg">سند جديد</button>
                 <button onClick={() => window.print()} className="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 shadow-lg">طباعة السند</button>
             </div>
-            {isModalOpen && <GeminiModal title={modalTitle} content={modalContent} isLoading={isLoading} onClose={() => setIsModalOpen(false)} />}
         </div>
         </>
     );
 }
 
 // --- Sub-components ---
-const InputField = ({ label, id, type = 'text', value, onChange }) => (
+const InputField = ({ label, id, type = 'text', value, onChange, readOnly }) => (
     <div>
         <label htmlFor={id} className="block text-sm font-bold text-gray-700 mb-1">{label}</label>
-        <input type={type} id={id} value={value} onChange={(e) => onChange(id, e.target.value)} className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+        <input type={type} id={id} value={value} onChange={(e) => onChange(id, e.target.value)} readOnly={readOnly} className={`w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${readOnly ? 'bg-gray-100' : ''}`} />
     </div>
 );
 
-const MaterialRow = ({ item, index, formData, onChange }) => (
+const MaterialRow = ({ item, index, formData, onChange, readOnly }) => (
     <tr className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
         <td className="p-2 border border-gray-300 text-center align-middle">{item.id}</td>
         <td className="p-2 border border-gray-300 align-middle">{item.type}</td>
         <td className="p-2 border border-gray-300 text-center align-middle">{item.unit}</td>
-        <td className="p-2 border border-gray-300"><input type="number" placeholder="0" value={formData[`quantity_${item.id}`] || ''} onChange={(e) => onChange(`quantity_${item.id}`, e.target.value)} className="w-full p-2 border-gray-200 border rounded-md text-center bg-gray-100 focus:bg-white focus:ring-2 focus:ring-blue-500" /></td>
-        <td className="p-2 border border-gray-300"><input type="text" value={formData[`notes_${item.id}`] || ''} onChange={(e) => onChange(`notes_${item.id}`, e.target.value)} className="w-full p-2 border-gray-200 border rounded-md bg-gray-100 focus:bg-white" /></td>
+        <td className="p-2 border border-gray-300"><input type="number" placeholder="0" value={formData[`quantity_${item.id}`] || ''} onChange={(e) => onChange(`quantity_${item.id}`, e.target.value)} readOnly={readOnly} className={`w-full p-2 border-gray-200 border rounded-md text-center ${readOnly ? 'bg-white' : 'bg-gray-100 focus:bg-white'} focus:ring-2 focus:ring-blue-500`} /></td>
+        <td className="p-2 border border-gray-300"><input type="text" value={formData[`notes_${item.id}`] || ''} onChange={(e) => onChange(`notes_${item.id}`, e.target.value)} readOnly={readOnly} className={`w-full p-2 border-gray-200 border rounded-md ${readOnly ? 'bg-white' : 'bg-gray-100 focus:bg-white'} focus:ring-2 focus:ring-blue-500`} /></td>
     </tr>
 );
 
@@ -378,28 +293,5 @@ const SignatureBox = ({ title }) => (
     <div className="text-center flex-1">
         <h3 className="font-bold text-lg text-gray-800 mb-2">{title}</h3>
         <div className="mt-12 pt-2 border-t-2 border-gray-400 w-full mx-auto signature-box"><p className="text-sm">التوقيع</p></div>
-    </div>
-);
-
-const GeminiModal = ({ title, content, isLoading, onClose }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 no-print">
-        <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl p-6">
-            <div className="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 className="text-xl font-bold text-gray-800">{title}</h3>
-                <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
-            </div>
-            <div className="max-h-[60vh] overflow-y-auto">
-                {isLoading ? (
-                    <div className="flex justify-center items-center h-48">
-                        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
-                    </div>
-                ) : (
-                    <div className="text-gray-700 whitespace-pre-wrap leading-relaxed">{content}</div>
-                )}
-            </div>
-            <div className="border-t pt-4 mt-4 flex justify-end">
-                <button onClick={onClose} className="bg-gray-200 text-gray-800 font-bold py-2 px-6 rounded-lg hover:bg-gray-300">إغلاق</button>
-            </div>
-        </div>
     </div>
 );
