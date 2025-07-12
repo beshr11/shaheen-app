@@ -26,6 +26,7 @@ export default function App() {
     
     // --- Firebase Initialization and Auth ---
     useEffect(() => {
+        // Use the environment-provided global variables
         const firebaseConfigString = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
@@ -87,13 +88,28 @@ export default function App() {
     const callGemini = async (prompt) => {
         setIsLoading(true);
         setModalContent('');
-        const apiKey = ""; // Handled by environment
+        
+        // Use the environment-provided global variable for the API key
+        const apiKey = typeof __gemini_api_key__ !== 'undefined' ? __gemini_api_key__ : "";
+
+        if (!apiKey) {
+            const errorMsg = "مفتاح Gemini API غير موجود. يرجى التأكد من إعداده بشكل صحيح.";
+            console.error(errorMsg);
+            setModalContent(errorMsg);
+            setIsLoading(false);
+            return;
+        }
+
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
         const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
 
         try {
             const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+            if (!response.ok) {
+                 const errorData = await response.json();
+                 console.error("API Error Response:", errorData);
+                 throw new Error(errorData.error.message || response.statusText);
+            }
             const result = await response.json();
             if (result.candidates?.[0]?.content?.parts?.[0]) {
                 setModalContent(result.candidates[0].content.parts[0].text);
