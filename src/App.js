@@ -1,20 +1,3 @@
-أهلاً بك. هذا سجل بناء (build log) من Netlify، وهو يوضح نوعًا مختلفًا تمامًا من الأخطاء. المشكلة الآن ليست مجرد تحذير في المتصفح، بل هي خطأ في بناء التطبيق يمنع نشره بالكامل.
-دعنا نحلل الخطأ:
-SyntaxError: /opt/build/repo/src/App.js: Unexpected token (336:0)
-
-  334 |         <p className="mb-4">...</p>
-  335 |         <div className="overflow-x-auto">...<tbody>{materials.map(...)}...</td><td className="p-2 border border-gray-300"><input type="number"
-> 336 |
-      | ^
-فهم المشكلة: SyntaxError: Unexpected token
-هذا الخطأ يعني أن عملية البناء (build process) توقفت لأنها وجدت رمزًا غير متوقع في السطر 336 من ملف App.js. بالنظر إلى السياق، يتضح ما حدث:
-في آخر تعديل قمت بإرساله لك، قمت بنسخ الكود لك ولكن النسخ لم يكن كاملاً. لقد توقف في منتصف مكون ReturnNote. السطر 335 ينتهي بشكل مفاجئ، والسطر 336 فارغ، مما سبب SyntaxError لأن الكود أصبح غير مكتمل وغير صالح.
-أعتذر بشدة عن هذا الخطأ غير المقصود. لقد حدث بسبب قص غير مكتمل للنص.
-الحل الصحيح والكامل
-سأقوم الآن بتزويدك بالكود الكامل والصحيح لملف App.js مرة أخرى، مع التأكد التام من أنه مكتمل 100% هذه المرة. لقد قمت بمراجعته من البداية إلى النهاية للتأكد من عدم وجود أي نقص.
-يرجى نسخ هذا الكود بالكامل واستبدال كل محتوى ملف src/App.js به. هذا سيحل خطأ البناء SyntaxError بشكل نهائي.
-الكود الكامل والصحيح (نسخة مُدققة ومكتملة):
-javascript
 import React, { useState, useEffect, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
