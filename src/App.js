@@ -1,3 +1,20 @@
+أهلاً بك. هذا سجل بناء (build log) من Netlify، وهو يوضح نوعًا مختلفًا تمامًا من الأخطاء. المشكلة الآن ليست مجرد تحذير في المتصفح، بل هي خطأ في بناء التطبيق يمنع نشره بالكامل.
+دعنا نحلل الخطأ:
+SyntaxError: /opt/build/repo/src/App.js: Unexpected token (336:0)
+
+  334 |         <p className="mb-4">...</p>
+  335 |         <div className="overflow-x-auto">...<tbody>{materials.map(...)}...</td><td className="p-2 border border-gray-300"><input type="number"
+> 336 |
+      | ^
+فهم المشكلة: SyntaxError: Unexpected token
+هذا الخطأ يعني أن عملية البناء (build process) توقفت لأنها وجدت رمزًا غير متوقع في السطر 336 من ملف App.js. بالنظر إلى السياق، يتضح ما حدث:
+في آخر تعديل قمت بإرساله لك، قمت بنسخ الكود لك ولكن النسخ لم يكن كاملاً. لقد توقف في منتصف مكون ReturnNote. السطر 335 ينتهي بشكل مفاجئ، والسطر 336 فارغ، مما سبب SyntaxError لأن الكود أصبح غير مكتمل وغير صالح.
+أعتذر بشدة عن هذا الخطأ غير المقصود. لقد حدث بسبب قص غير مكتمل للنص.
+الحل الصحيح والكامل
+سأقوم الآن بتزويدك بالكود الكامل والصحيح لملف App.js مرة أخرى، مع التأكد التام من أنه مكتمل 100% هذه المرة. لقد قمت بمراجعته من البداية إلى النهاية للتأكد من عدم وجود أي نقص.
+يرجى نسخ هذا الكود بالكامل واستبدال كل محتوى ملف src/App.js به. هذا سيحل خطأ البناء SyntaxError بشكل نهائي.
+الكود الكامل والصحيح (نسخة مُدققة ومكتملة):
+javascript
 import React, { useState, useEffect, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -50,7 +67,7 @@ const AppHeader = () => (
             س.ت: 1009148705 | جوال: 0558203077 | المملكة العربية السعودية - الرياض - حي العارض
         </p>
     </header>
-);
+ );
 
 const MaterialRow = ({ item, index, formData, onChange, readOnly }) => (
     <tr className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
@@ -142,12 +159,10 @@ const RentalContract = ({ formData, handleInputChange }) => (
             <InputField label="الطرف الثاني (المستأجر):" id="client_name" value={formData.client_name} onChange={handleInputChange} placeholder="اسم الشركة أو الفرد" />
             <InputField label="رقم السجل التجاري/الهوية:" id="client_cr" value={formData.client_cr} onChange={handleInputChange} />
             <h3 className="font-bold pt-4">تمهيد:</h3>
-            {/* CORRECTED: Changed p to div because it contains a block-level InputField */}
-            <div>حيث إن المؤجر يمتلك الخبرة والمعدات اللازمة لتأجير الشدات والسقالات المعدنية، وحيث إن المستأجر يرغب في استئجار هذه المعدات لاستخدامها في مشروعه الكائن في <InputField id="project_location" value={formData.project_location} onChange={handleInputChange} placeholder="مدينة - حي - وصف الموقع"/>، فقد اتفق الطرفان على ما يلي:</div>
+            <div className="mb-3">حيث إن المؤجر يمتلك الخبرة والمعدات اللازمة لتأجير الشدات والسقالات المعدنية، وحيث إن المستأجر يرغب في استئجار هذه المعدات لاستخدامها في مشروعه الكائن في <InputField id="project_location" value={formData.project_location} onChange={handleInputChange} placeholder="مدينة - حي - وصف الموقع"/>، فقد اتفق الطرفان على ما يلي:</div>
             <h3 className="font-bold pt-2">المادة (3): فترة الإيجار وآلية احتساب القيمة الإيجارية</h3>
             <p>3.1 **بدء فترة الإيجار:** تبدأ فترة الإيجار رسمياً من التاريخ المثبت في "محضر بدء أعمال".</p>
-            {/* CORRECTED: Changed p to div because it contains a block-level InputField */}
-            <div className="flex items-center gap-2">3.2 **القيمة الإيجارية الشهرية:** اتفق الطرفان على أن القيمة الإيجارية الشهرية للمعدات هي (<InputField id="monthly_rent_value" value={formData.monthly_rent_value} onChange={handleInputChange} placeholder="0.00" type="number" /> ريال سعودي)، غير شاملة لضريبة القيمة المضافة.</div>
+            <div className="flex items-center gap-2 mb-3">3.2 **القيمة الإيجارية الشهرية:** اتفق الطرفان على أن القيمة الإيجارية الشهرية للمعدات هي (<InputField id="monthly_rent_value" value={formData.monthly_rent_value} onChange={handleInputChange} placeholder="0.00" type="number" /> ريال سعودي)، غير شاملة لضريبة القيمة المضافة.</div>
             <p>3.3 **تمديد فترة الإيجار:** في حال امتدت فترة الإيجار إلى ما بعد الشهر الأول، إذا كانت مدة التمديد من يوم واحد (1) إلى سبعة (7) أيام تقويمية، يتم احتساب الإيجار لهذه الفترة على أساس تناسبي. إذا تجاوزت مدة التمديد سبعة (7) أيام تقويمية، يستحق على المستأجر سداد قيمة إيجار شهر ثانٍ كامل.</p>
             <h3 className="font-bold pt-2">المادة (5): الملكية، المسؤولية، والتعويض</h3>
             <p>5.1 **الملكية:** تظل ملكية المعدات خالصة للمؤجر ولا يجوز للمستأجر التصرف فيها بالبيع أو الرهن أو الإيجار من الباطن.</p>
@@ -177,8 +192,7 @@ const LaborContract = ({ formData, handleInputChange }) => (
             <p className="pt-4"><strong>الطرف الأول (مقدم الخدمة):</strong> شركة أعمال الشاهين للمقاولات، سجل تجاري رقم: 1009148705.</p>
             <InputField label="الطرف الثاني (العميل):" id="client_name" value={formData.client_name} onChange={handleInputChange} />
             <h3 className="font-bold pt-4">المادة (1): نطاق العمل</h3>
-            {/* CORRECTED: Changed p to div because it contains a block-level InputField */}
-            <div>يقوم الطرف الأول بتوفير العمالة الفنية اللازمة لتركيب وفك الشدات والسقالات المعدنية الخاصة بالطرف الثاني في مشروعه الكائن في <InputField id="project_location" value={formData.project_location} onChange={handleInputChange} />.</div>
+            <div className="mb-3">يقوم الطرف الأول بتوفير العمالة الفنية اللازمة لتركيب وفك الشدات والسقالات المعدنية الخاصة بالطرف الثاني في مشروعه الكائن في <InputField id="project_location" value={formData.project_location} onChange={handleInputChange} />.</div>
             <h3 className="font-bold pt-2">المادة (2): أجر العمالة (باليومية)</h3>
             <p>اتفق الطرفان على أن أجر العمالة يتم احتسابه باليومية، وجميع العمال يحملون شهادات TUV المعتمدة:</p>
             <div className="grid grid-cols-3 gap-4 p-4 border rounded-md">
@@ -231,7 +245,7 @@ const CommencementNote = ({ formData, handleInputChange }) => (
     </>
 );
 
-const ClaimNote = ({ formData, handleInputChange, materials }) => {
+const ClaimNote = ({ formData, handleInputChange }) => {
     const equipmentCost = parseFloat(formData.claim_equipment_cost || 0);
     const laborCost = parseFloat(formData.claim_labor_cost || 0);
     const damageCost = parseFloat(formData.claim_damage_cost || 0);
@@ -291,10 +305,8 @@ const ClaimNote = ({ formData, handleInputChange, materials }) => {
                 </tbody>
             </table>
              <h3 className="font-bold text-lg mb-4">معلومات الدفع:</h3>
-             {/* CORRECTED: Changed p to div for consistency and correctness */}
              <div className="flex items-center mb-2"><strong>اسم البنك:</strong> <InputField id="bank_name" value={formData.bank_name} onChange={handleInputChange} /></div>
              <p><strong>صاحب الحساب:</strong> شركة أعمال الشاهين للمقاولات</p>
-             {/* CORRECTED: Changed p to div for consistency and correctness */}
              <div className="flex items-center"><strong>رقم الآيبان:</strong> <InputField id="iban" value={formData.iban} onChange={handleInputChange} /></div>
             <footer className="mt-24 pt-8"><div className="flex flex-col md:flex-row justify-around items-stretch gap-12 mb-12 signature-container"><SignatureBox title="إعداد: شركة أعمال الشاهين" /><SignatureBox title="اعتماد: العميل / الاستشاري" /></div></footer>
         </>
@@ -324,7 +336,6 @@ const ReturnNote = ({ formData, handleInputChange, materials }) => (
     <>
         <AppHeader />
         <h2 className="text-2xl font-bold text-center mb-6">محضر إعادة استلام وفحص المعدات</h2>
-        {/* CORRECTED: Changed wrapper to div to avoid nesting block elements in p */}
         <div className="grid grid-cols-2 gap-4 mb-8">
             <div><strong>اسم المشروع:</strong> <InputField id="project_name" value={formData.project_name} onChange={handleInputChange} /></div>
             <div><strong>العميل (المستأجر):</strong> <InputField id="client_name" value={formData.client_name} onChange={handleInputChange} /></div>
@@ -332,4 +343,382 @@ const ReturnNote = ({ formData, handleInputChange, materials }) => (
             <div><strong>رقم العقد المرجعي:</strong> <InputField id="equipment_contract_id" value={formData.equipment_contract_id} onChange={handleInputChange} /></div>
         </div>
         <p className="mb-4">بموجبه، يتم إثبات إعادة استلام المعدات الموضحة أدناه من المستأجر. يقر الطرفان بالكميات والحالة المذكورة، والتي ستكون أساس المحاسبة النهائية لأي نقص أو تلف.</p>
-        <div className="overflow-x-auto"><table className="w-full text-sm text-right text-gray-600 border-collapse"><thead className="text-xs text-gray-700 uppercase bg-gray-100"><tr><th className="p-3 border border-gray-300">بيان</th><th className="p-3 border border-gray-300">الكمية المستلمة أساساً</th><th className="p-3 border border-gray-300">الكمية المرتجعة</th><th className="p-3 border border-gray-300">النقص / التالف</th><th className="p-3 border border-gray-300">ملاحظات الفحص</th></tr></thead><tbody>{materials.map((item, index) => (<tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}><td className="p-2 border border-gray-300">{item.type}</td><td className="p-2 border border-gray-300"><input type="number"
+        <div className="overflow-x-auto">
+            <table className="w-full text-sm text-right text-gray-600 border-collapse">
+                <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+                    <tr>
+                        <th className="p-3 border border-gray-300">بيان</th>
+                        <th className="p-3 border border-gray-300">الكمية المستلمة أساساً</th>
+                        <th className="p-3 border border-gray-300">الكمية المرتجعة</th>
+                        <th className="p-3 border border-gray-300">النقص / التالف</th>
+                        <th className="p-3 border border-gray-300">ملاحظات الفحص</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {materials.map((item, index) => (
+                        <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="p-2 border border-gray-300">{item.type}</td>
+                            <td className="p-2 border border-gray-300"><input type="number" value={formData[`quantity_${item.id}`] || ''} readOnly className="w-full p-1 bg-gray-100 text-center" /></td>
+                            <td className="p-2 border border-gray-300"><input type="number" value={formData[`returned_${item.id}`] || ''} onChange={(e) => handleInputChange(`returned_${item.id}`, e.target.value)} className="w-full p-1 text-center" /></td>
+                            <td className="p-2 border border-gray-300"><input type="number" value={formData[`damaged_${item.id}`] || ''} onChange={(e) => handleInputChange(`damaged_${item.id}`, e.target.value)} className="w-full p-1 text-center" /></td>
+                            <td className="p-2 border border-gray-300"><input type="text" value={formData[`inspection_notes_${item.id}`] || ''} onChange={(e) => handleInputChange(`inspection_notes_${item.id}`, e.target.value)} className="w-full p-1" /></td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+        <footer className="mt-24 pt-8"><div className="flex flex-col md:flex-row justify-around items-stretch gap-12 mb-12 signature-container"><SignatureBox title="ممثل المؤجر (المُستلِم)" /><SignatureBox title="ممثل المستأجر (المُسلِّم)" /></div></footer>
+    </>
+);
+
+const Quotation = ({ formData, handleInputChange }) => {
+    const area = parseFloat(formData.quote_area || 0);
+    const pricePerMeter = parseFloat(formData.quote_price_per_meter || 0);
+    const subtotal = area * pricePerMeter;
+    const vat = subtotal * 0.15;
+    const total = subtotal + vat;
+
+    return (
+        <>
+            <AppHeader />
+            <h2 className="text-2xl font-bold text-center mb-10">عرض سعر - تأجير وتركيب سقالات</h2>
+            <table className="w-full mb-8 border-collapse text-sm">
+                <tbody>
+                    <tr>
+                        <td className="font-bold p-2 border border-gray-200 bg-gray-50 w-1/4">إلى السيد/ة:</td>
+                        <td className="p-2 border border-gray-200 w-3/4"><InputField id="client_name" value={formData.client_name} onChange={handleInputChange} /></td>
+                    </tr>
+                    <tr>
+                        <td className="font-bold p-2 border border-gray-200 bg-gray-50">المشروع:</td>
+                        <td className="p-2 border border-gray-200"><InputField id="project_name" value={formData.project_name} onChange={handleInputChange} /></td>
+                    </tr>
+                    <tr>
+                        <td className="font-bold p-2 border border-gray-200 bg-gray-50">رقم عرض السعر:</td>
+                        <td className="p-2 border border-gray-200"><InputField id="quote_id" value={formData.quote_id} onChange={handleInputChange} /></td>
+                    </tr>
+                    <tr>
+                        <td className="font-bold p-2 border border-gray-200 bg-gray-50">التاريخ:</td>
+                        <td className="p-2 border border-gray-200"><InputField id="quote_date" type="date" value={formData.quote_date} onChange={handleInputChange} /></td>
+                    </tr>
+                </tbody>
+            </table>
+            <h3 className="font-bold text-lg mb-4">تفاصيل عرض السعر:</h3>
+            <table className="w-full mb-8 border-collapse text-sm">
+                <thead className="bg-gray-50">
+                    <tr>
+                        <th className="p-2 border border-gray-200 text-right">البند</th>
+                        <th className="p-2 border border-gray-200 text-center">المساحة (م²)</th>
+                        <th className="p-2 border border-gray-200 text-center">سعر المتر (ر.س)</th>
+                        <th className="p-2 border border-gray-200 text-left">الإجمالي (ر.س)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td className="p-2 border border-gray-200"><InputField id="quote_description" value={formData.quote_description} onChange={handleInputChange} placeholder="وصف الأعمال: تأجير وتركيب سقالات..." /></td>
+                        <td className="p-2 border border-gray-200"><InputField id="quote_area" type="number" value={formData.quote_area} onChange={handleInputChange} /></td>
+                        <td className="p-2 border border-gray-200"><InputField id="quote_price_per_meter" type="number" value={formData.quote_price_per_meter} onChange={handleInputChange} /></td>
+                        <td className="p-2 border border-gray-200 text-left">{subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                    <tr className="font-bold bg-gray-100">
+                        <td colSpan="3" className="p-2 border border-gray-200 text-right">المجموع الفرعي</td>
+                        <td className="p-2 border border-gray-200 text-left">{subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                    <tr>
+                        <td colSpan="3" className="p-2 border border-gray-200 text-right">ضريبة القيمة المضافة (15%)</td>
+                        <td className="p-2 border border-gray-200 text-left">{vat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                    <tr className="font-bold text-lg bg-blue-100">
+                        <td colSpan="3" className="p-3 border border-gray-200 text-right">الإجمالي المستحق للدفع</td>
+                        <td className="p-3 border border-gray-200 text-left">{total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p className="text-xs text-gray-600">ملاحظة: هذا العرض صالح لمدة 15 يوماً من تاريخه. الأسعار المذكورة أعلاه قابلة للتغيير بعد معاينة الموقع.</p>
+            <footer className="mt-24 pt-8"><div className="flex flex-col md:flex-row justify-around items-stretch gap-12 mb-12 signature-container"><SignatureBox title="مقدم العرض" name="بِشر شاهين - الرئيس التنفيذي" /><SignatureBox title="اعتماد العميل" /></div></footer>
+        </>
+    );
+};
+
+const DocumentSuite = () => {
+    const [db, setDb] = useState(null);
+    const [userId, setUserId] = useState(null);
+    const [formData, setFormData] = useState({});
+    const [isAuthReady, setIsAuthReady] = useState(false);
+    const [activeDocument, setActiveDocument] = useState('equipmentContract');
+    const [isInvoiceView, setIsInvoiceView] = useState(false);
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+    const ALL_MATERIALS = [
+        { id: 1, type: 'قائم 3م', unit: 'قطعة', price: 50 }, { id: 2, type: 'قائم 2.5م', unit: 'قطعة', price: 45 }, { id: 3, type: 'قائم 2م', unit: 'قطعة', price: 40 }, { id: 4, type: 'قائم 1.5م', unit: 'قطعة', price: 35 }, { id: 5, type: 'قائم 1م', unit: 'قطعة', price: 30 }, { id: 6, type: 'لدجر 1.8م', unit: 'قطعة', price: 25 }, { id: 7, type: 'لدجر 1.5م', unit: 'قطعة', price: 22 }, { id: 8, type: 'لدجر 1.60م', unit: 'قطعة', price: 23 }, { id: 9, type: 'لدجر 1.00م', unit: 'قطعة', price: 20 }, { id: 10, type: 'لدجر 1.25م', unit: 'قطعة', price: 21 }, { id: 11, type: 'لدجر 0.9م', unit: 'قطعة', price: 18 }, { id: 12, type: 'لدجر 1.2م', unit: 'قطعة', price: 20 }, { id: 13, type: 'لدجر 0.8م', unit: 'قطعة', price: 17 }, { id: 14, type: 'لدجر 0.6م', unit: 'قطعة', price: 15 }, { id: 15, type: 'يوهد', unit: 'قطعة', price: 30 }, { id: 16, type: 'ميزانيه', unit: 'قطعة', price: 35 }, { id: 17, type: 'دوكا المنيوم', unit: 'قطعة', price: 150 }, { id: 18, type: 'وصلات', unit: 'قطعة', price: 10 }, { id: 19, type: 'ماسورة', unit: 'قطعة', price: 20 }, { id: 20, type: 'كلامب', unit: 'قطعة', price: 12 }, { id: 21, type: 'بليتة تثبيت', unit: 'قطعة', price: 15 }, { id: 22, type: 'لوح بوندي 4م', unit: 'قطعة', price: 80 }
+    ];
+
+    useEffect(() => {
+        let firebaseConfigString = null;
+        if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_FIREBASE_CONFIG) {
+            firebaseConfigString = process.env.REACT_APP_FIREBASE_CONFIG;
+        } else if (typeof __firebase_config !== 'undefined') {
+            firebaseConfigString = __firebase_config;
+        }
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        if (!firebaseConfigString) { console.error("Firebase config missing."); return; }
+        try {
+            const firebaseConfig = JSON.parse(firebaseConfigString);
+            const app = initializeApp(firebaseConfig);
+            const firestoreDb = getFirestore(app);
+            const auth = getAuth(app);
+            setDb(firestoreDb);
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    setUserId(user.uid);
+                    setIsAuthReady(true);
+                } else {
+                    const authenticate = async () => {
+                        try {
+                            if (initialAuthToken) await signInWithCustomToken(auth, initialAuthToken);
+                            else await signInAnonymously(auth);
+                        } catch (error) { console.error("Auth failed:", error); }
+                    };
+                    authenticate();
+                }
+            });
+        } catch (error) { console.error("Firebase init error:", error); }
+    }, []);
+
+    useEffect(() => {
+        if (!isAuthReady || !db || !userId) return;
+        const docRef = doc(db, 'artifacts', appId, 'users', userId, 'scaffoldingDocs', 'main');
+        const unsubscribe = onSnapshot(docRef, (docSnap) => {
+            if (docSnap.exists()) setFormData(docSnap.data());
+            else setDoc(docRef, {});
+        }, (error) => console.error("Snapshot error:", error));
+        return () => unsubscribe();
+    }, [isAuthReady, db, userId, appId]);
+
+    const handleInputChange = useCallback(async (key, value) => {
+        const newFormData = { ...formData, [key]: value };
+        setFormData(newFormData);
+        if (db && userId) {
+            const docRef = doc(db, 'artifacts', appId, 'users', userId, 'scaffoldingDocs', 'main');
+            await setDoc(docRef, newFormData, { merge: true });
+        }
+    }, [formData, db, userId, appId]);
+
+    const clearForm = async () => {
+        if (window.confirm("هل أنت متأكد أنك تريد مسح جميع البيانات؟")) {
+            setFormData({});
+            setIsInvoiceView(false);
+            if (db && userId) {
+                const docRef = doc(db, 'artifacts', appId, 'users', userId, 'scaffoldingDocs', 'main');
+                await setDoc(docRef, {});
+            }
+        }
+    };
+
+    const renderActiveDocument = () => {
+        switch (activeDocument) {
+            case 'equipmentContract': return <RentalContract formData={formData} handleInputChange={handleInputChange} />;
+            case 'laborContract': return <LaborContract formData={formData} handleInputChange={handleInputChange} />;
+            case 'commencement': return <CommencementNote formData={formData} handleInputChange={handleInputChange} />;
+            case 'returnNote': return <ReturnNote formData={formData} handleInputChange={handleInputChange} materials={ALL_MATERIALS} />;
+            case 'claimNote': return <ClaimNote formData={formData} handleInputChange={handleInputChange} />;
+            case 'quotation': return <Quotation formData={formData} handleInputChange={handleInputChange} />;
+            case 'deliveryNote': default: return <DeliveryNote formData={formData} handleInputChange={handleInputChange} materials={ALL_MATERIALS} isInvoiceView={isInvoiceView} />;
+        }
+    };
+
+    return (
+        <>
+            <div className="max-w-5xl mx-auto mb-6 no-print">
+                <div className="bg-white p-2 rounded-lg shadow-md flex justify-center flex-wrap gap-2">
+                    <SubNavButton text="عرض سعر" onClick={() => setActiveDocument('quotation')} isActive={activeDocument === 'quotation'} />
+                    <SubNavButton text="عقد المعدات" onClick={() => setActiveDocument('equipmentContract')} isActive={activeDocument === 'equipmentContract'} />
+                    <SubNavButton text="عقد العمالة" onClick={() => setActiveDocument('laborContract')} isActive={activeDocument === 'laborContract'} />
+                    <SubNavButton text="محضر بدء أعمال" onClick={() => setActiveDocument('commencement')} isActive={activeDocument === 'commencement'} />
+                    <SubNavButton text="سند تسليم" onClick={() => setActiveDocument('deliveryNote')} isActive={activeDocument === 'deliveryNote'} />
+                    <SubNavButton text="محضر إعادة استلام" onClick={() => setActiveDocument('returnNote')} isActive={activeDocument === 'returnNote'} />
+                    <SubNavButton text="مطالبة مالية" onClick={() => setActiveDocument('claimNote')} isActive={activeDocument === 'claimNote'} />
+                </div>
+            </div>
+            <div className="max-w-5xl mx-auto bg-white p-6 sm:p-10 rounded-lg shadow-2xl printable-area border border-gray-200">
+                {renderActiveDocument()}
+            </div>
+            <div className="max-w-5xl mx-auto text-center mt-6 no-print flex flex-wrap justify-center gap-4">
+                {activeDocument === 'deliveryNote' && (
+                    <button onClick={() => setIsInvoiceView(!isInvoiceView)} className="bg-orange-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-orange-600 focus:ring-4 focus:ring-orange-300 shadow-lg">
+                        {isInvoiceView ? 'العودة للتعديل' : 'إصدار فاتورة للطباعة'}
+                    </button>
+                )}
+                <button onClick={clearForm} className="bg-red-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-700 focus:ring-4 focus:ring-red-300 shadow-lg">مستند جديد</button>
+                <button onClick={() => window.print()} className="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 shadow-lg">طباعة</button>
+            </div>
+        </>
+    );
+};
+
+const AiAgentView = () => {
+    const [prompt, setPrompt] = useState('');
+    const [docType, setDocType] = useState('عقد');
+    const [generatedContent, setGeneratedContent] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+
+    const handleGenerate = async () => {
+        if (!prompt.trim()) {
+            alert("يرجى إدخال وصف للمستند المطلوب.");
+            return;
+        }
+        setIsLoading(true);
+        setGeneratedContent('');
+
+        const fullPrompt = `
+            بصفتك خبيرًا في صياغة المستندات التجارية والقانونية في المملكة العربية السعودية، قم بإنشاء مسودة احترافية للمستند التالي:
+            - نوع المستند: ${docType}
+            - وصف الموضوع والتفاصيل: "${prompt}"
+            - استخدم ترويسة "شركة أعمال الشاهين للمقاولات" في الأعلى.
+            - قم بتنسيق الرد بشكل احترافي وواضح باستخدام Markdown، مع ترك فراغات مناسبة للتواقيع في النهاية إذا لزم الأمر.
+            - تأكد من أن الصياغة قوية وتحمي مصالح الشركة.
+        `;
+
+        let apiKey = "";
+        if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_GEMINI_API_KEY) {
+            apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+        } else if (typeof __gemini_api_key__ !== 'undefined') {
+            apiKey = __gemini_api_key__;
+        }
+
+        if (!apiKey) {
+            const errorMsg = "مفتاح Gemini API غير موجود. يرجى التأكد من إعداده بشكل صحيح.";
+            console.error(errorMsg);
+            setGeneratedContent(errorMsg);
+            setIsLoading(false);
+            return;
+        }
+
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const payload = { contents: [{ role: "user", parts: [{ text: fullPrompt }] }] };
+
+        try {
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload ) });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error.message || response.statusText);
+            }
+            const result = await response.json();
+            if (result.candidates?.[0]?.content?.parts?.[0]) {
+                setGeneratedContent(result.candidates[0].content.parts[0].text);
+                setIsEditing(true); // Automatically enable editing after generation
+            } else {
+                setGeneratedContent("لم يتمكن الذكاء الاصطناعي من إنشاء رد.");
+            }
+        } catch (error) {
+            console.error("Error calling Gemini API:", error);
+            setGeneratedContent(`حدث خطأ أثناء الاتصال بالذكاء الاصطناعي: ${error.message}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    const handlePrint = () => {
+        const printableElement = document.getElementById('printable-document');
+        if (printableElement) {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write('<html><head><title>طباعة مستند</title>');
+            printWindow.document.write('<style>@page { size: A4; margin: 1.5cm; } body { direction: rtl; font-family: "Tajawal", sans-serif; line-height: 1.6; } pre { white-space: pre-wrap; word-wrap: break-word; font-family: "Tajawal", sans-serif; font-size: 10pt; } </style>');
+            printWindow.document.write('</head><body>');
+            printWindow.document.write('<pre>' + generatedContent + '</pre>');
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.print();
+        }
+    };
+
+    return (
+        <div className="max-w-5xl mx-auto">
+            <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
+                <div className="flex items-center gap-3 mb-4">
+                    <Bot className="w-8 h-8 text-blue-600" />
+                    <h2 className="text-2xl font-bold text-gray-800">الوكيل الذكي للمستندات</h2>
+                </div>
+                <p className="text-gray-600 mb-6">صف للمساعد الذكي المستند الذي تحتاجه (عقد، مطالبة، عرض سعر، إلخ) مع ذكر أي تفاصيل هامة، وسيقوم بإنشاء مسودة احترافية لك.</p>
+                
+                <div className="space-y-4">
+                    <div>
+                        <label htmlFor="docType" className="block text-sm font-bold text-gray-700 mb-1">اختر نوع المستند الأساسي:</label>
+                        <select id="docType" value={docType} onChange={(e) => setDocType(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                            <option>عقد</option>
+                            <option>عرض سعر</option>
+                            <option>مطالبة مالية</option>
+                            <option>رسالة رسمية</option>
+                            <option>مستند آخر</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="prompt" className="block text-sm font-bold text-gray-700 mb-1">صف الموضوع والتفاصيل هنا:</label>
+                        <textarea
+                            id="prompt"
+                            rows="4"
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            placeholder="مثال: عقد إيجار سقالات لمشروع فيلا في حي الياسمين، يتضمن بنداً لغرامة التأخير وبنداً للمحافظة على المواد..."
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <button onClick={handleGenerate} disabled={isLoading} className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 shadow-lg flex items-center justify-center gap-2">
+                        {isLoading ? <Loader2 className="animate-spin" /> : <Bot />}
+                        {isLoading ? 'جاري إنشاء المستند...' : 'أنشئ المستند الآن'}
+                    </button>
+                </div>
+            </div>
+
+            {generatedContent && (
+                <div className="mt-8 bg-white p-6 rounded-lg shadow-lg border border-gray-200">
+                    <div className="flex justify-between items-center mb-4">
+                         <h3 className="text-xl font-bold text-gray-800">المستند المجهز: هل ترغب في تعديل شيء؟</h3>
+                         <div>
+                            <button onClick={() => setIsEditing(!isEditing)} className="bg-yellow-500 text-white p-2 rounded-lg hover:bg-yellow-600 mr-2 no-print">
+                                <Edit size={20} />
+                            </button>
+                             <button onClick={handlePrint} className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 no-print">
+                                 <Printer size={20} />
+                             </button>
+                         </div>
+                    </div>
+                    <div id="printable-document" className="printable-content">
+                        {isEditing ? (
+                            <textarea 
+                                value={generatedContent}
+                                onChange={(e) => setGeneratedContent(e.target.value)}
+                                className="w-full h-[60vh] p-4 border rounded-md font-mono text-sm"
+                            />
+                        ) : (
+                            <pre className="whitespace-pre-wrap p-4 bg-gray-50 rounded-md border">{generatedContent}</pre>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// --- Main App Component ---
+export default function App() {
+    const [activeView, setActiveView] = useState('documents'); // 'documents' or 'aiAgent'
+
+    return (
+        <>
+            <PrintStyles />
+            <div dir="rtl" className="bg-gray-100 min-h-screen p-4 sm:p-8" style={{ fontFamily: "'Tajawal', sans-serif" }}>
+                
+                <div className="max-w-6xl mx-auto mb-6 no-print">
+                    <div className="bg-white p-2 rounded-lg shadow-md flex justify-center flex-wrap gap-2">
+                        <NavButton text="منظومة المستندات" icon={<FileText size={16} />} onClick={() => setActiveView('documents')} isActive={activeView === 'documents'} />
+                        <NavButton text="الوكيل الذكي" icon={<Bot size={16} />} onClick={() => setActiveView('aiAgent')} isActive={activeView === 'aiAgent'} />
+                    </div>
+                </div>
+
+                {activeView === 'documents' ? <DocumentSuite /> : <AiAgentView />}
+
+            </div>
+        </>
+    );
+}
