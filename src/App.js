@@ -85,7 +85,7 @@ const PrintStyles = () => (
         @media print {
             html, body {
                 width: 210mm;
-                height: 297mm;
+                height: 297mm; /* A4 height */
                 margin: 0;
                 padding: 0;
                 font-size: 9.5pt;
@@ -98,7 +98,7 @@ const PrintStyles = () => (
 
            .printable-area {
                 width: 100%;
-                height: 100%;
+                height: 297mm; /* Force height to A4 */
                 padding: 0 !important;
                 margin: 0 !important;
                 border: none !important;
@@ -106,27 +106,73 @@ const PrintStyles = () => (
                 border-radius: 0 !important;
                 display: flex;
                 flex-direction: column;
+                overflow: hidden; /* Hide any content that overflows */
             }
 
-           .printable-area > * { flex-shrink: 0; }
-           .printable-area .overflow-x-auto, .printable-area .space-y-4, .printable-area .space-y-6 { flex-grow: 1; }
+           .printable-area > * {
+                flex-shrink: 0; /* Prevent direct children from shrinking initially */
+           }
+
+           /* This is the key part: allow the main content area to shrink */
+           .printable-area .space-y-4, 
+           .printable-area .space-y-6,
+           .printable-area .overflow-x-auto {
+                flex-shrink: 1;
+                flex-grow: 1;
+                overflow: hidden;
+           }
             
-           .printable-area header img { height: 5rem !important; margin-bottom: 0.5rem !important; }
-           .printable-area h1 { font-size: 16pt !important; font-weight: bold; }
-           .printable-area h2 { font-size: 13pt !important; font-weight: bold; margin-bottom: 0.8rem !important; }
-           .printable-area h3 { font-size: 11pt !important; font-weight: bold; }
+           .printable-area header img { height: 4.5rem !important; margin-bottom: 0.5rem !important; }
+           .printable-area h1 { font-size: 15pt !important; }
+           .printable-area h2 { font-size: 12pt !important; margin-bottom: 0.7rem !important; }
+           .printable-area h3 { font-size: 10pt !important; }
             
-           .printable-area table { font-size: 9pt !important; }
-           .printable-area th, .printable-area td { padding: 3px !important; page-break-inside: avoid; }
+           .printable-area table { font-size: 8.5pt !important; } /* Slightly smaller font for tables */
+           .printable-area th, .printable-area td { padding: 2px !important; page-break-inside: avoid; }
 
-           .printable-area footer { margin-top: auto !important; padding-top: 0.5rem !important; page-break-before: avoid; }
-           .printable-area .signature-box { margin-top: 1.5rem !important; }
-           .printable-area .legal-note { margin-top: 1rem !important; padding-top: 0.5rem !important; }
-        }
-    `}</style>
-);
+           /* Push footer to the bottom */
+           .printable-area footer { 
+                margin-top: auto !important; 
+                padding-top: 0.5rem !important; 
+                page-break-before: avoid; /* Try to keep footer with content */
+           }
+           .printable-area .signature-box { margin-top: 1rem !important; }
+           .printable-area .legal-note { margin-top: 0.5rem !important; padding-top: 0.5rem !important; }
+        }```
+**شرح التعديلات:**
+*   `overflow: hidden;` على `.printable-area` وبعض الأجزاء الداخلية لمنع المحتوى من "الهروب" خارج الصفحة.
+*   `flex-shrink: 1;` على حاويات المحتوى الرئيسية للسماح لها بالانكماش إذا لزم الأمر.
+*   تصغير حجم الخطوط والهوامش بشكل طفيف جداً للمساعدة في احتواء المزيد من المحتوى.
 
+---
 
+### 2. تحسين أداء الوكيل الذكي
+
+هذه مهمة تتعلق بـ "هندسة الأوامر" (Prompt Engineering). سنقوم بتعديل الأمر الذي نرسله إلى Gemini API لنجعله يطرح أسئلة توضيحية إذا كان الطلب غامضاً.
+
+**المشكلة:** حالياً، الوكيل يأخذ الوصف وينشئ المستند مباشرة.
+**الحل:** سنجعل الوكيل يحلل الطلب أولاً، وإذا وجده غير كافٍ، يطرح أسئلة محددة على المستخدم. هذا سيجعل العملية على خطوتين، لكن النتيجة ستكون أفضل بكثير.
+
+**هذا التعديل يتطلب تغيير منطق العمل في مكون `AiAgentView`، لكن للأسف، لا يمكننا جعله تفاعلياً (يسأل ثم يجيب) في خطوة واحدة بسيطة عبر API. الحل العملي هو تحسين الأمر الأولي ليطلب من الذكاء الاصطناعي تضمين كل التفاصيل المهمة.**
+
+سنقوم بتحديث الأمر (Prompt) ليكون أكثر تفصيلاً ويطلب من النموذج التفكير كـ "مستشار قانوني" سعودي.
+
+**الخطوات:**
+
+1.  افتح ملف `src/App.js`.
+2.  اذهب إلى مكون `AiAgentView`.
+3.  ابحث عن `const fullPrompt` داخل دالة `handleGenerate`.
+
+**استبدل هذا الكود:**
+```javascript
+        const fullPrompt = `
+            بصفتك خبيرًا في صياغة المستندات التجارية والقانونية في المملكة العربية السعودية، قم بإنشاء مسودة احترافية للمستند التالي:
+            - نوع المستند: ${docType}
+            - وصف الموضوع والتفاصيل: "${prompt}"
+            - استخدم ترويسة "شركة أعمال الشاهين للمقاولات" في الأعلى.
+            - قم بتنسيق الرد بشكل احترافي وواضح باستخدام Markdown، مع ترك فراغات مناسبة للتواقيع في النهاية إذا لزم الأمر.
+            - تأكد من أن الصياغة قوية وتحمي مصالح الشركة.
+        `;
 // --- Document Components ---
 
 const RentalContract = ({ formData, handleInputChange }) => (
@@ -554,14 +600,25 @@ const AiAgentView = () => {
         setGeneratedContent('');
 
         const fullPrompt = `
-            بصفتك خبيرًا في صياغة المستندات التجارية والقانونية في المملكة العربية السعودية، قم بإنشاء مسودة احترافية للمستند التالي:
-            - نوع المستند: ${docType}
-            - وصف الموضوع والتفاصيل: "${prompt}"
-            - استخدم ترويسة "شركة أعمال الشاهين للمقاولات" في الأعلى.
-            - قم بتنسيق الرد بشكل احترافي وواضح باستخدام Markdown، مع ترك فراغات مناسبة للتواقيع في النهاية إذا لزم الأمر.
-            - تأكد من أن الصياغة قوية وتحمي مصالح الشركة.
+            مهمتك هي العمل كمستشار قانوني وتجاري خبير ومتخصص في الأنظمة السعودية لـ "شركة أعمال الشاهين للمقاولات".
+            
+            **المهمة الأساسية:** إنشاء مسودة احترافية للمستند المطلوب بناءً على التفاصيل التالية.
+            
+            **نوع المستند المطلوب:** ${docType}
+            
+            **تفاصيل الطلب من المستخدم:** "${prompt}"
+            
+            **تعليمات صارمة يجب اتباعها:**
+            1.  **التحليل والتفكير:** قبل الكتابة، فكر في جميع الجوانب التي يجب أن يغطيها هذا النوع من المستندات في السعودية. ما هي البنود الأساسية؟ ما هي المخاطر التي يجب حماية الشركة منها؟ ما هي المعلومات التي قد تكون ناقصة في طلب المستخدم؟
+            2.  **إكمال النواقص:** إذا كان طلب المستخدم عاماً أو ناقصاً (مثال: "عقد إيجار سقالات")، فيجب عليك **تلقائياً** إضافة جميع البنود القياسية والضرورية التي تجعل المستند قوياً ومكتملاً. على سبيل المثال، في عقد الإيجار، يجب أن تضيف بنوداً عن (قيمة الإيجار، مدة العقد، مسؤولية الأطراف، التأمين، شرط التحكيم، القانون الواجب التطبيق، تعويضات التلف والفقدان، آلية التسليم والاستلام).
+            3.  **الصياغة:**
+                *   استخدم لغة عربية رسمية وقانونية واضحة.
+                *   ابدأ دائماً بترويسة الشركة: "شركة أعمال الشاهين للمقاولات".
+                *   نسّق المستند باستخدام Markdown (عناوين، قوائم نقطية ورقمية، نص عريض).
+                *   قسّم المستند إلى "مواد" أو "بنود" مرقمة وواضحة.
+                *   في النهاية، قم بتضمين قسم واضح لتواقيع الطرفين المعنيين (مثال: الطرف الأول، الطرف الثاني) مع ترك مساحة كافية للتوقيع.
+            4.  **الهدف النهائي:** إنشاء مستند جاهز للاستخدام مباشرة، يحمي مصالح "شركة أعمال الشاهين" إلى أقصى درجة ممكنة قانونياً. لا تقم بطرح أسئلة، بل قم بإنشاء أفضل مستند ممكن بناءً على خبرتك.
         `;
-
         const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
 
         if (!apiKey) {
