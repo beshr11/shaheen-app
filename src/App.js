@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { FileText, Printer, Bot, Edit, Loader2 } from 'lucide-react';
+import { FileText, Printer, RefreshCw } from 'lucide-react';
 
 // --- Reusable Components (Defined first to avoid reference errors) ---
 
@@ -29,15 +29,8 @@ const SignatureBox = ({ title, name }) => (
     </div>
 );
 
-const NavButton = ({ text, icon, onClick, isActive }) => (
-    <button onClick={onClick} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors duration-200 flex items-center gap-2 ${isActive ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>
-        {icon}
-        {text}
-    </button>
-);
-
 const SubNavButton = ({ text, onClick, isActive }) => (
-    <button onClick={onClick} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors duration-200 ${isActive ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+    <button onClick={onClick} className={`px-4 py-2 text-sm font-bold rounded-md transition-colors duration-200 flex items-center gap-2 ${isActive ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
         {text}
     </button>
 );
