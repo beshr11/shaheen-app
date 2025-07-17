@@ -1,3 +1,5 @@
+// الملف الكامل والنهائي لـ src/App.js مع جميع المكونات الأصلية + نظام الذاكرة
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -253,6 +255,7 @@ const UsageStats = ({ memoryManager }) => {
 const ConversationRating = ({ conversationId, memoryManager, onRated }) => {
     const [rating, setRating] = useState(0);
     const [feedback, setFeedback] = useState('');
+    const [isSubmitted, setIsSubmitted] = useState(false);
 
     const handleSubmit = () => {
         memoryManager.updateConversation(conversationId, {
@@ -261,7 +264,16 @@ const ConversationRating = ({ conversationId, memoryManager, onRated }) => {
             ratedAt: new Date().toISOString()
         });
         onRated && onRated(rating, feedback);
+        setIsSubmitted(true);
     };
+
+    if (isSubmitted) {
+        return (
+            <div className="bg-green-50 p-4 rounded-lg mt-4">
+                <p className="text-green-800 font-semibold">شكراً لك! تم حفظ تقييمك وسيساعدني في التحسن.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-gray-50 p-4 rounded-lg mt-4">
@@ -305,8 +317,10 @@ const EnhancedAiAgentView = () => {
     const [docType, setDocType] = useState('عقد');
     const [generatedContent, setGeneratedContent] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [isEditing, setIsEditing] = useState(false);
     const [currentConversationId, setCurrentConversationId] = useState(null);
+    const [conversationStep, setConversationStep] = useState('initial'); // 'initial', 'clarifying', 'generating', 'completed'
+    const [clarifyingQuestions, setClarifyingQuestions] = useState([]);
+    const [userAnswers, setUserAnswers] = useState({});
     
     const [activeTab, setActiveTab] = useState('generate');
     const [memoryManager] = useState(new MemoryManager());
@@ -351,49 +365,94 @@ const EnhancedAiAgentView = () => {
         return context;
     };
 
-    const buildEnhancedPrompt = () => {
+    const buildClarificationPrompt = () => {
         const memoryContext = buildContextFromMemory();
-        const stats = memoryManager.getStats();
         
         return `
-            مهمتك هي العمل كمستشار قانوني وتجاري خبير ومتخصص في الأنظمة السعودية لـ "شركة أعمال الشاهين للمقاولات".
+            أنت مستشار قانوني وتجاري خبير في الأنظمة السعودية لـ "شركة أعمال الشاهين للمقاولات".
             
-            **المهمة الأساسية:** إنشاء مسودة احترافية للمستند المطلوب بناءً على التفاصيل التالية.
+            المستخدم يريد إنشاء: ${docType}
+            وصف المستخدم: "${prompt}"
             
-            **نوع المستند المطلوب:** ${docType}
-            
-            **تفاصيل الطلب من المستخدم:** "${prompt}"
-            
-            **معلومات من ذاكرة النظام:**
-            - إجمالي المستندات المنشأة سابقاً: ${stats.totalConversations}
-            - متوسط تقييم المستخدم: ${stats.averageRating.toFixed(1)}/5
-            - أكثر نوع مستند استخداماً: ${stats.mostUsedDocType}
             ${memoryContext}
             
-            **تعليمات صارمة محسّنة بناءً على التجربة:**
-            1.  **التحليل والتفكير:** استفد من السياق أعلاه لفهم تفضيلات المستخدم وتجنب الأخطاء السابقة.
-            2.  **إكمال النواقص:** أضف جميع البنود القياسية والضرورية، مع التركيز على النقاط التي أشار إليها المستخدم في التجارب السابقة.
-            3.  **الصياغة المحسّنة:**
-                *   استخدم لغة عربية رسمية وقانونية واضحة.
-                *   ابدأ بعنوان رئيسي واضح للمستند.
-                *   نسّق باستخدام Markdown مع عناوين وقوائم منظمة.
-                *   قسّم إلى مواد مرقمة وواضحة.
-                *   أضف قسم التواقيع في النهاية.
-            4.  **التحسين المستمر:** اجعل المستند أفضل من المحاولات السابقة بناءً على التغذية الراجعة.
-            5.  **الهدف النهائي:** إنشاء مستند جاهز للاستخدام يحمي مصالح الشركة ويلبي توقعات المستخدم.
+            مهمتك الآن هي تحليل طلب المستخدم وتحديد ما إذا كان يحتاج توضيحات إضافية.
+            
+            إذا كان الطلب واضحاً ومفصلاً بما فيه الكفاية، أجب بـ: "الطلب واضح ومفصل"
+            
+            إذا كان الطلب يحتاج توضيحات، اطرح 3-5 أسئلة محددة وعملية لتحسين جودة المستند.
+            
+            اجعل أسئلتك في شكل قائمة مرقمة، مثل:
+            1. ما هي المدة الزمنية للعقد؟
+            2. ما هي قيمة الإيجار الشهرية؟
+            3. هل هناك شروط خاصة للتأمين؟
+            
+            ركز على الجوانب القانونية والمالية المهمة لحماية مصالح الشركة.
         `;
     };
 
-    const handleGenerate = async () => {
+    const buildFinalPrompt = () => {
+        const memoryContext = buildContextFromMemory();
+        const stats = memoryManager.getStats();
+        
+        let answersText = '';
+        if (Object.keys(userAnswers).length > 0) {
+            answersText = '\n**إجابات المستخدم على الأسئلة التوضيحية:**\n';
+            Object.entries(userAnswers).forEach(([question, answer]) => {
+                answersText += `- ${question}: ${answer}\n`;
+            });
+        }
+        
+        return `
+            أنت مستشار قانوني وتجاري خبير ومتخصص في الأنظمة السعودية لـ "شركة أعمال الشاهين للمقاولات".
+            
+            **المهمة:** إنشاء مسودة احترافية ومكتملة للمستند التالي:
+            
+            **نوع المستند:** ${docType}
+            **الطلب الأصلي:** "${prompt}"
+            ${answersText}
+            
+            **معلومات من ذاكرة النظام:**
+            - إجمالي المستندات المنشأة: ${stats.totalConversations}
+            - متوسط تقييم المستخدم: ${stats.averageRating.toFixed(1)}/5
+            ${memoryContext}
+            
+            **تعليمات صارمة:**
+            1. ابدأ بترويسة احترافية تتضمن:
+               - شعار وعنوان "شركة أعمال الشاهين للمقاولات"
+               - رقم السجل التجاري: 1009148705
+               - رقم الجوال: 0558203077
+               - العنوان: المملكة العربية السعودية - الرياض - حي العارض
+            
+            2. أنشئ عنواناً واضحاً للمستند
+            
+            3. قسّم المستند إلى مواد مرقمة وواضحة تغطي:
+               - جميع الجوانب القانونية والمالية
+               - حقوق والتزامات كل طرف
+               - شروط الدفع والتسليم
+               - آليات حل النزاعات
+               - أي شروط خاصة بنوع المستند
+            
+            4. اختتم بقسم التواقيع مع مساحات للأطراف
+            
+            5. استخدم لغة عربية قانونية رسمية وواضحة
+            
+            6. نسّق النص باستخدام Markdown للعناوين والقوائم
+            
+            **الهدف:** إنشاء مستند جاهز للاستخدام يحمي مصالح الشركة إلى أقصى درجة ممكنة.
+        `;
+    };
+
+    const handleInitialGenerate = async () => {
         if (!prompt.trim()) {
             alert("يرجى إدخال وصف للمستند المطلوب.");
             return;
         }
         
         setIsLoading(true);
-        setGeneratedContent('');
+        setConversationStep('clarifying');
 
-        const enhancedPrompt = buildEnhancedPrompt();
+        const clarificationPrompt = buildClarificationPrompt();
         const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
 
         if (!apiKey) {
@@ -405,7 +464,68 @@ const EnhancedAiAgentView = () => {
         }
 
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-        const payload = { contents: [{ role: "user", parts: [{ text: enhancedPrompt }] }] };
+        const payload = { contents: [{ role: "user", parts: [{ text: clarificationPrompt }] }] };
+
+        try {
+            const response = await fetch(apiUrl, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(payload) 
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error.message || response.statusText);
+            }
+            
+            const result = await response.json();
+            if (result.candidates?.[0]?.content?.parts?.[0]) {
+                const aiResponse = result.candidates[0].content.parts[0].text;
+                
+                if (aiResponse.includes("الطلب واضح ومفصل")) {
+                    // الطلب واضح، ننتقل مباشرة لإنشاء المستند
+                    handleFinalGenerate();
+                } else {
+                    // نحتاج توضيحات
+                    const questions = extractQuestions(aiResponse);
+                    setClarifyingQuestions(questions);
+                    setConversationStep('clarifying');
+                }
+            } else {
+                setGeneratedContent("لم يتمكن الذكاء الاصطناعي من تحليل الطلب.");
+                setConversationStep('initial');
+            }
+        } catch (error) {
+            console.error("Error calling Gemini API:", error);
+            setGeneratedContent(`حدث خطأ أثناء الاتصال بالذكاء الاصطناعي: ${error.message}`);
+            setConversationStep('initial');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const extractQuestions = (text) => {
+        const lines = text.split('\n');
+        const questions = [];
+        
+        lines.forEach(line => {
+            const match = line.match(/^\d+\.\s*(.+)/);
+            if (match) {
+                questions.push(match[1].trim());
+            }
+        });
+        
+        return questions;
+    };
+
+    const handleFinalGenerate = async () => {
+        setIsLoading(true);
+        setConversationStep('generating');
+
+        const finalPrompt = buildFinalPrompt();
+        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const payload = { contents: [{ role: "user", parts: [{ text: finalPrompt }] }] };
 
         try {
             const response = await fetch(apiUrl, { 
@@ -423,18 +543,21 @@ const EnhancedAiAgentView = () => {
             if (result.candidates?.[0]?.content?.parts?.[0]) {
                 const aiResponse = result.candidates[0].content.parts[0].text;
                 setGeneratedContent(aiResponse);
-                setIsEditing(true);
+                setConversationStep('completed');
                 
+                // حفظ المحادثة في الذاكرة
                 const conversationId = memoryManager.saveConversation({
                     userInput: prompt,
                     docType: docType,
                     aiResponse: aiResponse,
+                    clarifyingQuestions: clarifyingQuestions,
+                    userAnswers: userAnswers,
                     tags: extractTags(prompt, docType)
                 });
                 setCurrentConversationId(conversationId);
                 
             } else {
-                setGeneratedContent("لم يتمكن الذكاء الاصطناعي من إنشاء رد.");
+                setGeneratedContent("لم يتمكن الذكاء الاصطناعي من إنشاء المستند.");
             }
         } catch (error) {
             console.error("Error calling Gemini API:", error);
@@ -452,19 +575,10 @@ const EnhancedAiAgentView = () => {
 
     const applySuggestion = (conversation) => {
         setPrompt(conversation.userInput);
+        setDocType(conversation.docType);
         setGeneratedContent(conversation.aiResponse);
-        setIsEditing(true);
+        setConversationStep('completed');
         setShowSuggestions(false);
-    };
-
-    const handleContentChange = (newContent) => {
-        setGeneratedContent(newContent);
-        if (currentConversationId) {
-            memoryManager.updateConversation(currentConversationId, {
-                finalVersion: newContent,
-                lastModified: new Date().toISOString()
-            });
-        }
     };
 
     const handleRating = (rating, feedback) => {
@@ -478,13 +592,73 @@ const EnhancedAiAgentView = () => {
 
     const handlePrint = () => {
         const printWindow = window.open('', '_blank');
-        printWindow.document.write('<html><head><title>طباعة مستند</title>');
-        printWindow.document.write('<style>@page { size: A4; margin: 1.5cm; } body { direction: rtl; font-family: "Tajawal", sans-serif; line-height: 1.6; } h1, h2, h3 { margin-bottom: 0.5rem; } p { margin-top: 0; } ul, ol { padding-right: 20px; } </style>');
-        printWindow.document.write('</head><body>');
-        printWindow.document.write('<div class="prose">' + generatedContent.replace(/\n/g, '<br>') + '</div>');
-        printWindow.document.write('</body></html>');
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>طباعة مستند</title>
+                <style>
+                    @page { 
+                        size: A4; 
+                        margin: 1.5cm; 
+                    } 
+                    body { 
+                        direction: rtl; 
+                        font-family: "Tajawal", sans-serif; 
+                        line-height: 1.6; 
+                        font-size: 12pt;
+                    } 
+                    h1, h2, h3 { 
+                        margin-bottom: 0.5rem; 
+                        color: #1f2937;
+                    } 
+                    h1 { font-size: 18pt; }
+                    h2 { font-size: 16pt; }
+                    h3 { font-size: 14pt; }
+                    p { 
+                        margin-top: 0; 
+                        margin-bottom: 0.5rem;
+                    } 
+                    ul, ol { 
+                        padding-right: 20px; 
+                        margin-bottom: 1rem;
+                    }
+                    .header {
+                        text-align: center;
+                        border-bottom: 2px solid #e5e7eb;
+                        padding-bottom: 1rem;
+                        margin-bottom: 2rem;
+                    }
+                    .signature-section {
+                        margin-top: 3rem;
+                        display: flex;
+                        justify-content: space-between;
+                    }
+                    .signature-box {
+                        text-align: center;
+                        width: 45%;
+                        border-top: 1px solid #000;
+                        padding-top: 0.5rem;
+                        margin-top: 2rem;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="prose">
+                    ${generatedContent.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>')}
+                </div>
+            </body>
+            </html>
+        `);
         printWindow.document.close();
         printWindow.print();
+    };
+
+    const resetConversation = () => {
+        setConversationStep('initial');
+        setClarifyingQuestions([]);
+        setUserAnswers({});
+        setGeneratedContent('');
+        setCurrentConversationId(null);
     };
 
     const exportData = () => {
@@ -525,82 +699,130 @@ const EnhancedAiAgentView = () => {
 
             {activeTab === 'generate' && (
                 <>
-                    <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-200 no-print">
-                        <div className="flex items-center gap-3 mb-4">
-                            <Bot className="w-8 h-8 text-blue-600" />
-                            <h2 className="text-2xl font-bold text-gray-800">الوكيل الذكي للمستندات</h2>
-                            <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">مع ذاكرة ذكية</span>
-                        </div>
-                        
-                        <p className="text-gray-600 mb-6">صف للمساعد الذكي المستند الذي تحتاجه. النظام يتذكر تفضيلاتك ويتعلم من تجاربك السابقة لتحسين النتائج.</p>
-                        
-                        <div className="space-y-4">
-                            <div>
-                                <label htmlFor="docType" className="block text-sm font-bold text-gray-700 mb-1">اختر نوع المستند الأساسي:</label>
-                                <select 
-                                    id="docType" 
-                                    value={docType} 
-                                    onChange={(e) => setDocType(e.target.value)} 
-                                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                                >
-                                    <option>عقد</option>
-                                    <option>عرض سعر</option>
-                                    <option>مطالبة مالية</option>
-                                    <option>رسالة رسمية</option>
-                                    <option>مستند آخر</option>
-                                </select>
+                    {conversationStep === 'initial' && (
+                        <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-200 no-print">
+                            <div className="flex items-center gap-3 mb-4">
+                                <Bot className="w-8 h-8 text-blue-600" />
+                                <h2 className="text-2xl font-bold text-gray-800">الوكيل الذكي للمستندات</h2>
+                                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">مع ذاكرة ذكية</span>
                             </div>
                             
-                            <div>
-                                <label htmlFor="prompt" className="block text-sm font-bold text-gray-700 mb-1">صف الموضوع والتفاصيل هنا:</label>
-                                <textarea
-                                    id="prompt"
-                                    rows="4"
-                                    value={prompt}
-                                    onChange={(e) => setPrompt(e.target.value)}
-                                    placeholder="مثال: عقد إيجار سقالات لمشروع فيلا في حي الياسمين، يتضمن بنداً لغرامة التأخير وبنداً للمحافظة على المواد..."
-                                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                                />
-                            </div>
-
-                            {showSuggestions && (
-                                <div className="bg-blue-50 p-4 rounded-lg">
-                                    <h4 className="font-semibold text-blue-800 mb-2">💡 اقتراحات من تجاربك السابقة:</h4>
-                                    <div className="space-y-2">
-                                        {similarConversations.map(conv => (
-                                            <div key={conv.id} className="bg-white p-3 rounded border cursor-pointer hover:bg-gray-50" onClick={() => applySuggestion(conv)}>
-                                                <p className="text-sm text-gray-700">{conv.userInput.substring(0, 100)}...</p>
-                                                <div className="flex justify-between items-center mt-1">
-                                                    <span className="text-xs text-gray-500">{new Date(conv.timestamp).toLocaleDateString('ar-SA')}</span>
-                                                    {conv.rating && <span className="text-xs">{'★'.repeat(conv.rating)}</span>}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                            <p className="text-gray-600 mb-6">صف للمساعد الذكي المستند الذي تحتاجه. سأطرح عليك أسئلة توضيحية إذا احتجت لمزيد من التفاصيل لإنشاء أفضل مستند ممكن.</p>
+                            
+                            <div className="space-y-4">
+                                <div>
+                                    <label htmlFor="docType" className="block text-sm font-bold text-gray-700 mb-1">اختر نوع المستند الأساسي:</label>
+                                    <select 
+                                        id="docType" 
+                                        value={docType} 
+                                        onChange={(e) => setDocType(e.target.value)} 
+                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        <option>عقد</option>
+                                        <option>عرض سعر</option>
+                                        <option>مطالبة مالية</option>
+                                        <option>رسالة رسمية</option>
+                                        <option>مستند آخر</option>
+                                    </select>
                                 </div>
-                            )}
-                            
-                            <button 
-                                onClick={handleGenerate} 
-                                disabled={isLoading} 
-                                className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 shadow-lg flex items-center justify-center gap-2"
-                            >
-                                {isLoading ? <Loader2 className="animate-spin" /> : <Bot />}
-                                {isLoading ? 'جاري إنشاء المستند...' : 'أنشئ المستند الآن'}
-                            </button>
-                        </div>
-                    </div>
+                                
+                                <div>
+                                    <label htmlFor="prompt" className="block text-sm font-bold text-gray-700 mb-1">صف الموضوع والتفاصيل هنا:</label>
+                                    <textarea
+                                        id="prompt"
+                                        rows="4"
+                                        value={prompt}
+                                        onChange={(e) => setPrompt(e.target.value)}
+                                        placeholder="مثال: عقد إيجار سقالات لمشروع فيلا في حي الياسمين، يتضمن بنداً لغرامة التأخير وبنداً للمحافظة على المواد..."
+                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
 
-                    {generatedContent && (
-                        <div className="mt-8 bg-white p-6 rounded-lg shadow-lg border border-gray-200">
+                                {showSuggestions && (
+                                    <div className="bg-blue-50 p-4 rounded-lg">
+                                        <h4 className="font-semibold text-blue-800 mb-2">💡 اقتراحات من تجاربك السابقة:</h4>
+                                        <div className="space-y-2">
+                                            {similarConversations.map(conv => (
+                                                <div key={conv.id} className="bg-white p-3 rounded border cursor-pointer hover:bg-gray-50" onClick={() => applySuggestion(conv)}>
+                                                    <p className="text-sm text-gray-700">{conv.userInput.substring(0, 100)}...</p>
+                                                    <div className="flex justify-between items-center mt-1">
+                                                        <span className="text-xs text-gray-500">{new Date(conv.timestamp).toLocaleDateString('ar-SA')}</span>
+                                                        {conv.rating && <span className="text-xs">{'★'.repeat(conv.rating)}</span>}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                <button 
+                                    onClick={handleInitialGenerate} 
+                                    disabled={isLoading} 
+                                    className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 shadow-lg flex items-center justify-center gap-2"
+                                >
+                                    {isLoading ? <Loader2 className="animate-spin" /> : <Bot />}
+                                    {isLoading ? 'جاري التحليل...' : 'ابدأ المحادثة'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {conversationStep === 'clarifying' && clarifyingQuestions.length > 0 && (
+                        <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-200 no-print">
+                            <div className="flex items-center gap-3 mb-4">
+                                <Bot className="w-8 h-8 text-blue-600" />
+                                <h2 className="text-xl font-bold text-gray-800">أسئلة توضيحية لتحسين المستند</h2>
+                            </div>
+                            
+                            <p className="text-gray-600 mb-6">لإنشاء أفضل مستند ممكن، أحتاج بعض التوضيحات الإضافية:</p>
+                            
+                            <div className="space-y-4">
+                                {clarifyingQuestions.map((question, index) => (
+                                    <div key={index}>
+                                        <label className="block text-sm font-bold text-gray-700 mb-1">
+                                            {index + 1}. {question}
+                                        </label>
+                                        <textarea
+                                            rows="2"
+                                            value={userAnswers[question] || ''}
+                                            onChange={(e) => setUserAnswers(prev => ({...prev, [question]: e.target.value}))}
+                                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                                            placeholder="اكتب إجابتك هنا..."
+                                        />
+                                    </div>
+                                ))}
+                                
+                                <div className="flex gap-4">
+                                    <button 
+                                        onClick={handleFinalGenerate} 
+                                        disabled={isLoading} 
+                                        className="flex-1 bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-300 shadow-lg flex items-center justify-center gap-2"
+                                    >
+                                        {isLoading ? <Loader2 className="animate-spin" /> : <Bot />}
+                                        {isLoading ? 'جاري إنشاء المستند...' : 'أنشئ المستند الآن'}
+                                    </button>
+                                    
+                                    <button 
+                                        onClick={() => handleFinalGenerate()} 
+                                        className="bg-gray-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-600"
+                                    >
+                                        تخطي الأسئلة
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {conversationStep === 'completed' && generatedContent && (
+                        <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
                             <div className="flex justify-between items-center mb-4 no-print">
                                 <h3 className="text-xl font-bold text-gray-800">المستند المجهز:</h3>
                                 <div className="flex gap-2">
                                     <button 
-                                        onClick={() => setIsEditing(!isEditing)} 
-                                        className="bg-yellow-500 text-white p-2 rounded-lg hover:bg-yellow-600"
+                                        onClick={resetConversation} 
+                                        className="bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600"
                                     >
-                                        <Edit size={20} />
+                                        <Bot size={20} />
                                     </button>
                                     <button 
                                         onClick={handlePrint} 
@@ -612,17 +834,9 @@ const EnhancedAiAgentView = () => {
                             </div>
                             
                             <div id="printable-document" className="printable-content">
-                                {isEditing ? (
-                                    <textarea 
-                                        value={generatedContent}
-                                        onChange={(e) => handleContentChange(e.target.value)}
-                                        className="w-full h-[60vh] p-4 border rounded-md font-mono text-sm leading-relaxed"
-                                    />
-                                ) : (
-                                    <div className="prose prose-lg max-w-none p-4 bg-gray-50 rounded-md border">
-                                        <ReactMarkdown>{generatedContent}</ReactMarkdown>
-                                    </div>
-                                )}
+                                <div className="prose prose-lg max-w-none p-4 bg-gray-50 rounded-md border">
+                                    <ReactMarkdown>{generatedContent}</ReactMarkdown>
+                                </div>
                             </div>
 
                             {currentConversationId && (
@@ -644,6 +858,7 @@ const EnhancedAiAgentView = () => {
                         setPrompt(conv.userInput);
                         setDocType(conv.docType);
                         setGeneratedContent(conv.finalVersion || conv.aiResponse);
+                        setConversationStep('completed');
                         setActiveTab('generate');
                     }}
                 />
@@ -683,7 +898,7 @@ const EnhancedAiAgentView = () => {
     );
 };
 
-// === باقي مكونات التطبيق (المستندات التقليدية) ===
+// === المكونات الأساسية للمستندات التقليدية ===
 
 const InputField = ({ label, id, value, onChange, readOnly = false, type = "text", placeholder = '' }) => (
     <div className="w-full inline-block">
@@ -729,6 +944,23 @@ const AppHeader = () => (
             س.ت: 1009148705 | جوال: 0558203077 | المملكة العربية السعودية - الرياض - حي العارض
         </p>
     </header>
+);
+
+const MaterialRow = ({ item, index, formData, onChange, readOnly }) => (
+    <tr className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+        <td className="p-2 border border-gray-300 text-center align-middle">{item.id}</td>
+        <td className="p-2 border border-gray-300 align-middle">{item.type}</td>
+        <td className="p-2 border border-gray-300 text-center align-middle">{item.unit}</td>
+        <td className="p-2 border border-gray-300"><input type="number" placeholder="0" value={formData[`quantity_${item.id}`] || ''} onChange={(e) => onChange(`quantity_${item.id}`, e.target.value)} readOnly={readOnly} className={`w-full p-2 border-gray-200 border rounded-md text-center ${readOnly ? 'bg-white' : 'bg-gray-100 focus:bg-white'} focus:ring-2 focus:ring-blue-500`} /></td>
+        <td className="p-2 border border-gray-300"><input type="text" value={formData[`notes_${item.id}`] || ''} onChange={(e) => onChange(`notes_${item.id}`, e.target.value)} readOnly={readOnly} className={`w-full p-2 border-gray-200 border rounded-md ${readOnly ? 'bg-white' : 'bg-gray-100 focus:bg-white'} focus:ring-2 focus:ring-blue-500`} /></td>
+    </tr>
+);
+
+const ChecklistItem = ({ label, id, formData, onChange }) => (
+    <tr>
+        <td className="p-2 border border-gray-200">{label}</td>
+        <td className="p-2 border border-gray-200 text-center"><input type="checkbox" checked={formData[id] || false} onChange={(e) => onChange(id, e.target.checked)} className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500" /></td>
+    </tr>
 );
 
 const PrintStyles = () => (
@@ -782,20 +1014,727 @@ const PrintStyles = () => (
     `}</style>
 );
 
-// مكون بسيط للمستندات التقليدية (يمكن إضافة باقي المكونات هنا)
-const DocumentSuite = () => {
+// === مكونات المستندات التقليدية ===
+
+const RentalContract = ({ formData, onChange, readOnly = false }) => {
+    const materials = [
+        { id: 1, type: "سقالات معدنية", unit: "متر مربع" },
+        { id: 2, type: "ألواح خشبية", unit: "لوح" },
+        { id: 3, type: "أنابيب معدنية", unit: "أنبوب" },
+        { id: 4, type: "مشابك ربط", unit: "قطعة" },
+        { id: 5, type: "قواعد تثبيت", unit: "قطعة" },
+        { id: 6, type: "سلالم متنقلة", unit: "سلم" },
+        { id: 7, type: "حبال أمان", unit: "متر" },
+        { id: 8, type: "شبكات حماية", unit: "متر مربع" }
+    ];
+
     return (
-        <div className="text-center p-8">
-            <h2 className="text-2xl font-bold mb-4">منظومة المستندات التقليدية</h2>
-            <p className="text-gray-600">هذا القسم يحتوي على المستندات التقليدية (عقود الإيجار، العمالة، إلخ)</p>
-            <p className="text-sm text-gray-500 mt-2">يمكن إضافة باقي مكونات المستندات هنا حسب الحاجة</p>
+        <div className="printable-area">
+            <AppHeader />
+            
+            <div className="space-y-6">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">عقد إيجار سقالات ومعدات</h2>
+                    <div className="text-sm text-gray-600">
+                        <InputField label="رقم العقد" id="contract_number" value={formData.contract_number} onChange={onChange} readOnly={readOnly} placeholder="001/2024" />
+                        <InputField label="تاريخ العقد" id="contract_date" value={formData.contract_date} onChange={onChange} readOnly={readOnly} type="date" />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h3 className="font-bold text-lg mb-2">بيانات المؤجر (الطرف الأول)</h3>
+                        <div className="space-y-2">
+                            <InputField label="الاسم" id="lessor_name" value={formData.lessor_name} onChange={onChange} readOnly={readOnly} placeholder="شركة أعمال الشاهين للمقاولات" />
+                            <InputField label="رقم السجل التجاري" id="lessor_cr" value={formData.lessor_cr} onChange={onChange} readOnly={readOnly} placeholder="1009148705" />
+                            <InputField label="رقم الهاتف" id="lessor_phone" value={formData.lessor_phone} onChange={onChange} readOnly={readOnly} placeholder="0558203077" />
+                        </div>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-lg mb-2">بيانات المستأجر (الطرف الثاني)</h3>
+                        <div className="space-y-2">
+                            <InputField label="الاسم" id="lessee_name" value={formData.lessee_name} onChange={onChange} readOnly={readOnly} placeholder="اسم المستأجر" />
+                            <InputField label="رقم الهوية/السجل التجاري" id="lessee_id" value={formData.lessee_id} onChange={onChange} readOnly={readOnly} placeholder="رقم الهوية" />
+                            <InputField label="رقم الهاتف" id="lessee_phone" value={formData.lessee_phone} onChange={onChange} readOnly={readOnly} placeholder="رقم الهاتف" />
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 className="font-bold text-lg mb-2">تفاصيل المشروع</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <InputField label="اسم المشروع" id="project_name" value={formData.project_name} onChange={onChange} readOnly={readOnly} placeholder="اسم المشروع" />
+                        <InputField label="موقع المشروع" id="project_location" value={formData.project_location} onChange={onChange} readOnly={readOnly} placeholder="العنوان" />
+                        <InputField label="تاريخ بداية الإيجار" id="start_date" value={formData.start_date} onChange={onChange} readOnly={readOnly} type="date" />
+                        <InputField label="تاريخ نهاية الإيجار" id="end_date" value={formData.end_date} onChange={onChange} readOnly={readOnly} type="date" />
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <h3 className="font-bold text-lg mb-2">المواد والمعدات المؤجرة</h3>
+                    <table className="w-full text-sm text-right text-gray-600 border-collapse">
+                        <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+                            <tr>
+                                <th className="p-3 border border-gray-300">م</th>
+                                <th className="p-3 border border-gray-300">نوع المادة</th>
+                                <th className="p-3 border border-gray-300">الوحدة</th>
+                                <th className="p-3 border border-gray-300">الكمية</th>
+                                <th className="p-3 border border-gray-300">ملاحظات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {materials.map((item, index) => (
+                                <MaterialRow key={item.id} item={item} index={index} formData={formData} onChange={onChange} readOnly={readOnly} />
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <InputField label="إجمالي قيمة الإيجار" id="total_rent" value={formData.total_rent} onChange={onChange} readOnly={readOnly} placeholder="0 ريال" />
+                    <InputField label="قيمة التأمين" id="security_deposit" value={formData.security_deposit} onChange={onChange} readOnly={readOnly} placeholder="0 ريال" />
+                </div>
+
+                <div className="contract-text">
+                    <h3 className="font-bold text-lg mb-2">شروط العقد</h3>
+                    <div className="text-sm space-y-2">
+                        <p><strong>المادة الأولى:</strong> يلتزم الطرف الثاني بدفع قيمة الإيجار المتفق عليها في المواعيد المحددة.</p>
+                        <p><strong>المادة الثانية:</strong> يتحمل الطرف الثاني مسؤولية المحافظة على المواد المؤجرة وإعادتها بنفس الحالة.</p>
+                        <p><strong>المادة الثالثة:</strong> في حالة التلف أو الفقدان، يتحمل الطرف الثاني قيمة الإصلاح أو الاستبدال.</p>
+                        <p><strong>المادة الرابعة:</strong> يحق للطرف الأول استرداد المواد في أي وقت في حالة الإخلال بشروط العقد.</p>
+                        <p><strong>المادة الخامسة:</strong> أي نزاع ينشأ عن هذا العقد يحال إلى المحاكم المختصة في المملكة العربية السعودية.</p>
+                    </div>
+                </div>
+            </div>
+
+            <footer className="mt-8">
+                <div className="flex justify-between items-center">
+                    <SignatureBox title="الطرف الأول (المؤجر)" name="شركة أعمال الشاهين للمقاولات" />
+                    <SignatureBox title="الطرف الثاني (المستأجر)" name={formData.lessee_name} />
+                </div>
+                <div className="text-center mt-4 text-xs text-gray-500 legal-note">
+                    <p>هذا العقد محرر من نسختين، لكل طرف نسخة للعمل بموجبها.</p>
+                </div>
+            </footer>
+        </div>
+    );
+};
+
+const LaborContract = ({ formData, onChange, readOnly = false }) => {
+    return (
+        <div className="printable-area">
+            <AppHeader />
+            
+            <div className="space-y-6">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">عقد عمالة</h2>
+                    <div className="text-sm text-gray-600">
+                        <InputField label="رقم العقد" id="contract_number" value={formData.contract_number} onChange={onChange} readOnly={readOnly} placeholder="002/2024" />
+                        <InputField label="تاريخ العقد" id="contract_date" value={formData.contract_date} onChange={onChange} readOnly={readOnly} type="date" />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h3 className="font-bold text-lg mb-2">بيانات صاحب العمل (الطرف الأول)</h3>
+                        <div className="space-y-2">
+                            <InputField label="الاسم" id="employer_name" value={formData.employer_name} onChange={onChange} readOnly={readOnly} placeholder="شركة أعمال الشاهين للمقاولات" />
+                            <InputField label="رقم السجل التجاري" id="employer_cr" value={formData.employer_cr} onChange={onChange} readOnly={readOnly} placeholder="1009148705" />
+                            <InputField label="رقم الهاتف" id="employer_phone" value={formData.employer_phone} onChange={onChange} readOnly={readOnly} placeholder="0558203077" />
+                        </div>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-lg mb-2">بيانات العامل (الطرف الثاني)</h3>
+                        <div className="space-y-2">
+                            <InputField label="الاسم" id="worker_name" value={formData.worker_name} onChange={onChange} readOnly={readOnly} placeholder="اسم العامل" />
+                            <InputField label="رقم الهوية/الإقامة" id="worker_id" value={formData.worker_id} onChange={onChange} readOnly={readOnly} placeholder="رقم الهوية" />
+                            <InputField label="رقم الهاتف" id="worker_phone" value={formData.worker_phone} onChange={onChange} readOnly={readOnly} placeholder="رقم الهاتف" />
+                            <InputField label="الجنسية" id="worker_nationality" value={formData.worker_nationality} onChange={onChange} readOnly={readOnly} placeholder="الجنسية" />
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 className="font-bold text-lg mb-2">تفاصيل العمل</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <InputField label="نوع العمل" id="job_type" value={formData.job_type} onChange={onChange} readOnly={readOnly} placeholder="نوع العمل" />
+                        <InputField label="موقع العمل" id="work_location" value={formData.work_location} onChange={onChange} readOnly={readOnly} placeholder="موقع العمل" />
+                        <InputField label="تاريخ بداية العمل" id="start_date" value={formData.start_date} onChange={onChange} readOnly={readOnly} type="date" />
+                        <InputField label="مدة العقد (بالأشهر)" id="contract_duration" value={formData.contract_duration} onChange={onChange} readOnly={readOnly} placeholder="6" />
+                        <InputField label="الراتب الشهري" id="monthly_salary" value={formData.monthly_salary} onChange={onChange} readOnly={readOnly} placeholder="0 ريال" />
+                        <InputField label="ساعات العمل اليومية" id="daily_hours" value={formData.daily_hours} onChange={onChange} readOnly={readOnly} placeholder="8" />
+                    </div>
+                </div>
+
+                <div className="contract-text">
+                    <h3 className="font-bold text-lg mb-2">شروط العقد</h3>
+                    <div className="text-sm space-y-2">
+                        <p><strong>المادة الأولى:</strong> يلتزم الطرف الثاني بأداء العمل المطلوب بإتقان وفي المواعيد المحددة.</p>
+                        <p><strong>المادة الثانية:</strong> يلتزم الطرف الأول بدفع الراتب المتفق عليه في نهاية كل شهر.</p>
+                        <p><strong>المادة الثالثة:</strong> يحق للطرف الثاني الحصول على إجازة أسبوعية وإجازة سنوية حسب نظام العمل السعودي.</p>
+                        <p><strong>المادة الرابعة:</strong> يلتزم الطرف الأول بتوفير بيئة عمل آمنة ومعدات الحماية اللازمة.</p>
+                        <p><strong>المادة الخامسة:</strong> يحق لأي من الطرفين إنهاء العقد بإشعار مسبق لمدة شهر.</p>
+                        <p><strong>المادة السادسة:</strong> أي نزاع ينشأ عن هذا العقد يحال إلى مكتب العمل المختص.</p>
+                    </div>
+                </div>
+            </div>
+
+            <footer className="mt-8">
+                <div className="flex justify-between items-center">
+                    <SignatureBox title="الطرف الأول (صاحب العمل)" name="شركة أعمال الشاهين للمقاولات" />
+                    <SignatureBox title="الطرف الثاني (العامل)" name={formData.worker_name} />
+                </div>
+                <div className="text-center mt-4 text-xs text-gray-500 legal-note">
+                    <p>هذا العقد محرر من نسختين، لكل طرف نسخة للعمل بموجبها.</p>
+                </div>
+            </footer>
+        </div>
+    );
+};
+
+const CommencementNote = ({ formData, onChange, readOnly = false }) => {
+    const materials = [
+        { id: 1, type: "سقالات معدنية", unit: "متر مربع" },
+        { id: 2, type: "ألواح خشبية", unit: "لوح" },
+        { id: 3, type: "أنابيب معدنية", unit: "أنبوب" },
+        { id: 4, type: "مشابك ربط", unit: "قطعة" },
+        { id: 5, type: "قواعد تثبيت", unit: "قطعة" },
+        { id: 6, type: "سلالم متنقلة", unit: "سلم" },
+        { id: 7, type: "حبال أمان", unit: "متر" },
+        { id: 8, type: "شبكات حماية", unit: "متر مربع" }
+    ];
+
+    return (
+        <div className="printable-area">
+            <AppHeader />
+            
+            <div className="space-y-6">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">محضر تسليم واستلام</h2>
+                    <div className="text-sm text-gray-600">
+                        <InputField label="رقم المحضر" id="note_number" value={formData.note_number} onChange={onChange} readOnly={readOnly} placeholder="001/2024" />
+                        <InputField label="التاريخ" id="note_date" value={formData.note_date} onChange={onChange} readOnly={readOnly} type="date" />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h3 className="font-bold text-lg mb-2">بيانات المسلم (الطرف الأول)</h3>
+                        <div className="space-y-2">
+                            <InputField label="الاسم" id="deliverer_name" value={formData.deliverer_name} onChange={onChange} readOnly={readOnly} placeholder="شركة أعمال الشاهين للمقاولات" />
+                            <InputField label="الصفة" id="deliverer_position" value={formData.deliverer_position} onChange={onChange} readOnly={readOnly} placeholder="مندوب الشركة" />
+                            <InputField label="رقم الهاتف" id="deliverer_phone" value={formData.deliverer_phone} onChange={onChange} readOnly={readOnly} placeholder="0558203077" />
+                        </div>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-lg mb-2">بيانات المستلم (الطرف الثاني)</h3>
+                        <div className="space-y-2">
+                            <InputField label="الاسم" id="receiver_name" value={formData.receiver_name} onChange={onChange} readOnly={readOnly} placeholder="اسم المستلم" />
+                            <InputField label="الصفة" id="receiver_position" value={formData.receiver_position} onChange={onChange} readOnly={readOnly} placeholder="مدير المشروع" />
+                            <InputField label="رقم الهاتف" id="receiver_phone" value={formData.receiver_phone} onChange={onChange} readOnly={readOnly} placeholder="رقم الهاتف" />
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 className="font-bold text-lg mb-2">تفاصيل المشروع</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <InputField label="اسم المشروع" id="project_name" value={formData.project_name} onChange={onChange} readOnly={readOnly} placeholder="اسم المشروع" />
+                        <InputField label="موقع المشروع" id="project_location" value={formData.project_location} onChange={onChange} readOnly={readOnly} placeholder="العنوان" />
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <h3 className="font-bold text-lg mb-2">المواد المسلمة</h3>
+                    <table className="w-full text-sm text-right text-gray-600 border-collapse">
+                        <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+                            <tr>
+                                <th className="p-3 border border-gray-300">م</th>
+                                <th className="p-3 border border-gray-300">نوع المادة</th>
+                                <th className="p-3 border border-gray-300">الوحدة</th>
+                                <th className="p-3 border border-gray-300">الكمية المسلمة</th>
+                                <th className="p-3 border border-gray-300">الحالة</th>
+                                <th className="p-3 border border-gray-300">ملاحظات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {materials.map((item, index) => (
+                                <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                    <td className="p-2 border border-gray-300 text-center">{item.id}</td>
+                                    <td className="p-2 border border-gray-300">{item.type}</td>
+                                    <td className="p-2 border border-gray-300 text-center">{item.unit}</td>
+                                    <td className="p-2 border border-gray-300">
+                                        <input 
+                                            type="number" 
+                                            value={formData[`quantity_${item.id}`] || ''} 
+                                            onChange={(e) => onChange(`quantity_${item.id}`, e.target.value)} 
+                                            readOnly={readOnly}
+                                            className="w-full p-1 border rounded text-center"
+                                        />
+                                    </td>
+                                    <td className="p-2 border border-gray-300">
+                                        <select 
+                                            value={formData[`condition_${item.id}`] || ''} 
+                                            onChange={(e) => onChange(`condition_${item.id}`, e.target.value)}
+                                            disabled={readOnly}
+                                            className="w-full p-1 border rounded"
+                                        >
+                                            <option value="">اختر</option>
+                                            <option value="جيد">جيد</option>
+                                            <option value="مقبول">مقبول</option>
+                                            <option value="يحتاج صيانة">يحتاج صيانة</option>
+                                        </select>
+                                    </td>
+                                    <td className="p-2 border border-gray-300">
+                                        <input 
+                                            type="text" 
+                                            value={formData[`notes_${item.id}`] || ''} 
+                                            onChange={(e) => onChange(`notes_${item.id}`, e.target.value)} 
+                                            readOnly={readOnly}
+                                            className="w-full p-1 border rounded"
+                                        />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="contract-text">
+                    <h3 className="font-bold text-lg mb-2">ملاحظات عامة</h3>
+                    <textarea 
+                        value={formData.general_notes || ''} 
+                        onChange={(e) => onChange('general_notes', e.target.value)} 
+                        readOnly={readOnly}
+                        className="w-full p-3 border rounded-md h-24"
+                        placeholder="أي ملاحظات إضافية..."
+                    />
+                </div>
+            </div>
+
+            <footer className="mt-8">
+                <div className="flex justify-between items-center">
+                    <SignatureBox title="المسلم" name={formData.deliverer_name} />
+                    <SignatureBox title="المستلم" name={formData.receiver_name} />
+                </div>
+                <div className="text-center mt-4 text-xs text-gray-500 legal-note">
+                    <p>تم التسليم والاستلام بالحالة المذكورة أعلاه</p>
+                </div>
+            </footer>
+        </div>
+    );
+};
+
+const ClaimNote = ({ formData, onChange, readOnly = false }) => {
+    return (
+        <div className="printable-area">
+            <AppHeader />
+            
+            <div className="space-y-6">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">مذكرة مطالبة مالية</h2>
+                    <div className="text-sm text-gray-600">
+                        <InputField label="رقم المطالبة" id="claim_number" value={formData.claim_number} onChange={onChange} readOnly={readOnly} placeholder="001/2024" />
+                        <InputField label="التاريخ" id="claim_date" value={formData.claim_date} onChange={onChange} readOnly={readOnly} type="date" />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h3 className="font-bold text-lg mb-2">بيانات الدائن</h3>
+                        <div className="space-y-2">
+                            <InputField label="الاسم" id="creditor_name" value={formData.creditor_name} onChange={onChange} readOnly={readOnly} placeholder="شركة أعمال الشاهين للمقاولات" />
+                            <InputField label="رقم السجل التجاري" id="creditor_cr" value={formData.creditor_cr} onChange={onChange} readOnly={readOnly} placeholder="1009148705" />
+                            <InputField label="رقم الهاتف" id="creditor_phone" value={formData.creditor_phone} onChange={onChange} readOnly={readOnly} placeholder="0558203077" />
+                        </div>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-lg mb-2">بيانات المدين</h3>
+                        <div className="space-y-2">
+                            <InputField label="الاسم" id="debtor_name" value={formData.debtor_name} onChange={onChange} readOnly={readOnly} placeholder="اسم المدين" />
+                            <InputField label="رقم الهوية/السجل التجاري" id="debtor_id" value={formData.debtor_id} onChange={onChange} readOnly={readOnly} placeholder="رقم الهوية" />
+                            <InputField label="رقم الهاتف" id="debtor_phone" value={formData.debtor_phone} onChange={onChange} readOnly={readOnly} placeholder="رقم الهاتف" />
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 className="font-bold text-lg mb-2">تفاصيل المطالبة</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <InputField label="سبب المطالبة" id="claim_reason" value={formData.claim_reason} onChange={onChange} readOnly={readOnly} placeholder="سبب المطالبة" />
+                        <InputField label="رقم العقد/الفاتورة" id="reference_number" value={formData.reference_number} onChange={onChange} readOnly={readOnly} placeholder="رقم المرجع" />
+                        <InputField label="تاريخ الاستحقاق" id="due_date" value={formData.due_date} onChange={onChange} readOnly={readOnly} type="date" />
+                        <InputField label="المبلغ المطالب به" id="claim_amount" value={formData.claim_amount} onChange={onChange} readOnly={readOnly} placeholder="0 ريال" />
+                    </div>
+                </div>
+
+                <div className="contract-text">
+                    <h3 className="font-bold text-lg mb-2">تفاصيل المطالبة</h3>
+                    <textarea 
+                        value={formData.claim_details || ''} 
+                        onChange={(e) => onChange('claim_details', e.target.value)} 
+                        readOnly={readOnly}
+                        className="w-full p-3 border rounded-md h-32"
+                        placeholder="تفاصيل المطالبة والمبررات..."
+                    />
+                </div>
+
+                <div className="contract-text">
+                    <h3 className="font-bold text-lg mb-2">المطالبة</h3>
+                    <div className="text-sm space-y-2">
+                        <p>بناءً على ما تقدم، نطالب بسداد المبلغ المستحق وقدره <strong>{formData.claim_amount || '______'} ريال</strong> في أقرب وقت ممكن.</p>
+                        <p>في حالة عدم السداد خلال <strong>15 يوم</strong> من تاريخ هذه المذكرة، سنضطر لاتخاذ الإجراءات القانونية اللازمة.</p>
+                        <p>نأمل تفهمكم وسرعة الاستجابة لتجنب أي إجراءات قانونية.</p>
+                    </div>
+                </div>
+            </div>
+
+            <footer className="mt-8">
+                <div className="flex justify-between items-center">
+                    <SignatureBox title="الدائن" name={formData.creditor_name} />
+                    <div className="text-center">
+                        <h3 className="font-bold text-lg text-gray-800 mb-2">إقرار الاستلام</h3>
+                        <p className="text-sm mb-4">أقر بأنني استلمت هذه المذكرة</p>
+                        <div className="mt-12 pt-2 border-t-2 border-gray-400 w-full mx-auto signature-box">
+                            <p className="text-sm">توقيع المدين</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="text-center mt-4 text-xs text-gray-500 legal-note">
+                    <p>هذه المذكرة محررة في تاريخ {formData.claim_date || '______'}</p>
+                </div>
+            </footer>
+        </div>
+    );
+};
+
+const DeliveryNote = ({ formData, onChange, readOnly = false }) => {
+    const materials = [
+        { id: 1, type: "سقالات معدنية", unit: "متر مربع" },
+        { id: 2, type: "ألواح خشبية", unit: "لوح" },
+        { id: 3, type: "أنابيب معدنية", unit: "أنبوب" },
+        { id: 4, type: "مشابك ربط", unit: "قطعة" },
+        { id: 5, type: "قواعد تثبيت", unit: "قطعة" },
+        { id: 6, type: "سلالم متنقلة", unit: "سلم" },
+        { id: 7, type: "حبال أمان", unit: "متر" },
+        { id: 8, type: "شبكات حماية", unit: "متر مربع" }
+    ];
+
+    return (
+        <div className="printable-area">
+            <AppHeader />
+            
+            <div className="space-y-6">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">إشعار تسليم</h2>
+                    <div className="text-sm text-gray-600">
+                        <InputField label="رقم الإشعار" id="delivery_number" value={formData.delivery_number} onChange={onChange} readOnly={readOnly} placeholder="001/2024" />
+                        <InputField label="التاريخ" id="delivery_date" value={formData.delivery_date} onChange={onChange} readOnly={readOnly} type="date" />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h3 className="font-bold text-lg mb-2">بيانات المورد</h3>
+                        <div className="space-y-2">
+                            <InputField label="الاسم" id="supplier_name" value={formData.supplier_name} onChange={onChange} readOnly={readOnly} placeholder="شركة أعمال الشاهين للمقاولات" />
+                            <InputField label="رقم الهاتف" id="supplier_phone" value={formData.supplier_phone} onChange={onChange} readOnly={readOnly} placeholder="0558203077" />
+                            <InputField label="العنوان" id="supplier_address" value={formData.supplier_address} onChange={onChange} readOnly={readOnly} placeholder="الرياض - حي العارض" />
+                        </div>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-lg mb-2">بيانات العميل</h3>
+                        <div className="space-y-2">
+                            <InputField label="الاسم" id="client_name" value={formData.client_name} onChange={onChange} readOnly={readOnly} placeholder="اسم العميل" />
+                            <InputField label="رقم الهاتف" id="client_phone" value={formData.client_phone} onChange={onChange} readOnly={readOnly} placeholder="رقم الهاتف" />
+                            <InputField label="عنوان التسليم" id="delivery_address" value={formData.delivery_address} onChange={onChange} readOnly={readOnly} placeholder="عنوان التسليم" />
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 className="font-bold text-lg mb-2">تفاصيل التسليم</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <InputField label="تاريخ التسليم المتوقع" id="expected_delivery_date" value={formData.expected_delivery_date} onChange={onChange} readOnly={readOnly} type="date" />
+                        <InputField label="وقت التسليم" id="delivery_time" value={formData.delivery_time} onChange={onChange} readOnly={readOnly} type="time" />
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <h3 className="font-bold text-lg mb-2">المواد المراد تسليمها</h3>
+                    <table className="w-full text-sm text-right text-gray-600 border-collapse">
+                        <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+                            <tr>
+                                <th className="p-3 border border-gray-300">م</th>
+                                <th className="p-3 border border-gray-300">نوع المادة</th>
+                                <th className="p-3 border border-gray-300">الوحدة</th>
+                                <th className="p-3 border border-gray-300">الكمية</th>
+                                <th className="p-3 border border-gray-300">ملاحظات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {materials.map((item, index) => (
+                                <MaterialRow key={item.id} item={item} index={index} formData={formData} onChange={onChange} readOnly={readOnly} />
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="contract-text">
+                    <h3 className="font-bold text-lg mb-2">تعليمات التسليم</h3>
+                    <div className="text-sm space-y-2">
+                        <p><strong>1.</strong> يرجى التأكد من وجود شخص مخول لاستلام المواد في الموقع.</p>
+                        <p><strong>2.</strong> يجب فحص المواد عند الاستلام والتوقيع على محضر الاستلام.</p>
+                        <p><strong>3.</strong> في حالة عدم وجود أحد في الموقع، سيتم إعادة جدولة التسليم.</p>
+                        <p><strong>4.</strong> يرجى الاتصال على الرقم المذكور أعلاه في حالة الحاجة لتغيير موعد التسليم.</p>
+                    </div>
+                </div>
+
+                <div className="contract-text">
+                    <h3 className="font-bold text-lg mb-2">ملاحظات إضافية</h3>
+                    <textarea 
+                        value={formData.additional_notes || ''} 
+                        onChange={(e) => onChange('additional_notes', e.target.value)} 
+                        readOnly={readOnly}
+                        className="w-full p-3 border rounded-md h-24"
+                        placeholder="أي ملاحظات أو تعليمات خاصة..."
+                    />
+                </div>
+            </div>
+
+            <footer className="mt-8">
+                <div className="text-center">
+                    <p className="text-sm text-gray-600 mb-4">
+                        للاستفسار أو تغيير موعد التسليم، يرجى الاتصال على: <strong>{formData.supplier_phone || '0558203077'}</strong>
+                    </p>
+                    <div className="text-xs text-gray-500 legal-note">
+                        <p>شركة أعمال الشاهين للمقاولات - نقدم خدماتنا بجودة عالية ومواعيد دقيقة</p>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    );
+};
+
+const ReturnNote = ({ formData, onChange, readOnly = false }) => {
+    const materials = [
+        { id: 1, type: "سقالات معدنية", unit: "متر مربع" },
+        { id: 2, type: "ألواح خشبية", unit: "لوح" },
+        { id: 3, type: "أنابيب معدنية", unit: "أنبوب" },
+        { id: 4, type: "مشابك ربط", unit: "قطعة" },
+        { id: 5, type: "قواعد تثبيت", unit: "قطعة" },
+        { id: 6, type: "سلالم متنقلة", unit: "سلم" },
+        { id: 7, type: "حبال أمان", unit: "متر" },
+        { id: 8, type: "شبكات حماية", unit: "متر مربع" }
+    ];
+
+    return (
+        <div className="printable-area">
+            <AppHeader />
+            
+            <div className="space-y-6">
+                <div className="text-center">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">محضر إرجاع وفحص</h2>
+                    <div className="text-sm text-gray-600">
+                        <InputField label="رقم المحضر" id="return_number" value={formData.return_number} onChange={onChange} readOnly={readOnly} placeholder="001/2024" />
+                        <InputField label="التاريخ" id="return_date" value={formData.return_date} onChange={onChange} readOnly={readOnly} type="date" />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h3 className="font-bold text-lg mb-2">بيانات المستلم (الشركة)</h3>
+                        <div className="space-y-2">
+                            <InputField label="الاسم" id="company_name" value={formData.company_name} onChange={onChange} readOnly={readOnly} placeholder="شركة أعمال الشاهين للمقاولات" />
+                            <InputField label="المستلم" id="company_receiver" value={formData.company_receiver} onChange={onChange} readOnly={readOnly} placeholder="اسم المستلم" />
+                            <InputField label="رقم الهاتف" id="company_phone" value={formData.company_phone} onChange={onChange} readOnly={readOnly} placeholder="0558203077" />
+                        </div>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-lg mb-2">بيانات المرجع (العميل)</h3>
+                        <div className="space-y-2">
+                            <InputField label="الاسم" id="client_name" value={formData.client_name} onChange={onChange} readOnly={readOnly} placeholder="اسم العميل" />
+                            <InputField label="رقم العقد الأصلي" id="original_contract" value={formData.original_contract} onChange={onChange} readOnly={readOnly} placeholder="رقم العقد" />
+                            <InputField label="رقم الهاتف" id="client_phone" value={formData.client_phone} onChange={onChange} readOnly={readOnly} placeholder="رقم الهاتف" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <h3 className="font-bold text-lg mb-2">المواد المرجعة وحالة الفحص</h3>
+                    <table className="w-full text-sm text-right text-gray-600 border-collapse">
+                        <thead className="text-xs text-gray-700 uppercase bg-gray-100">
+                            <tr>
+                                <th className="p-3 border border-gray-300">بيان</th>
+                                <th className="p-3 border border-gray-300">الكمية المستلمة أساساً</th>
+                                <th className="p-3 border border-gray-300">الكمية المرجعة</th>
+                                <th className="p-3 border border-gray-300">الكمية المفقودة / التالفة</th>
+                                <th className="p-3 border border-gray-300">ملاحظات الفحص</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {materials.map((item, index) => (
+                                <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                    <td className="p-2 border border-gray-300">{item.type}</td>
+                                    <td className="p-2 border border-gray-300">
+                                        <input 
+                                            type="number" 
+                                            value={formData[`original_quantity_${item.id}`] || ''} 
+                                            onChange={(e) => onChange(`original_quantity_${item.id}`, e.target.value)} 
+                                            readOnly={readOnly}
+                                            className="w-full p-1 border rounded text-center"
+                                        />
+                                    </td>
+                                    <td className="p-2 border border-gray-300">
+                                        <input 
+                                            type="number" 
+                                            value={formData[`returned_quantity_${item.id}`] || ''} 
+                                            onChange={(e) => onChange(`returned_quantity_${item.id}`, e.target.value)} 
+                                            readOnly={readOnly}
+                                            className="w-full p-1 border rounded text-center"
+                                        />
+                                    </td>
+                                    <td className="p-2 border border-gray-300">
+                                        <input 
+                                            type="number" 
+                                            value={formData[`damaged_quantity_${item.id}`] || ''} 
+                                            onChange={(e) => onChange(`damaged_quantity_${item.id}`, e.target.value)} 
+                                            readOnly={readOnly}
+                                            className="w-full p-1 border rounded text-center"
+                                        />
+                                    </td>
+                                    <td className="p-2 border border-gray-300">
+                                        <input 
+                                            type="text" 
+                                            value={formData[`inspection_notes_${item.id}`] || ''} 
+                                            onChange={(e) => onChange(`inspection_notes_${item.id}`, e.target.value)} 
+                                            readOnly={readOnly}
+                                            className="w-full p-1"
+                                        />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <h3 className="font-bold text-lg mb-2">ملخص الفحص</h3>
+                        <div className="space-y-2">
+                            <InputField label="إجمالي المواد المرجعة بحالة جيدة" id="good_condition_total" value={formData.good_condition_total} onChange={onChange} readOnly={readOnly} />
+                            <InputField label="إجمالي المواد التالفة" id="damaged_total" value={formData.damaged_total} onChange={onChange} readOnly={readOnly} />
+                            <InputField label="إجمالي المواد المفقودة" id="missing_total" value={formData.missing_total} onChange={onChange} readOnly={readOnly} />
+                        </div>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-lg mb-2">التكاليف</h3>
+                        <div className="space-y-2">
+                            <InputField label="قيمة المواد التالفة" id="damage_cost" value={formData.damage_cost} onChange={onChange} readOnly={readOnly} placeholder="0 ريال" />
+                            <InputField label="قيمة المواد المفقودة" id="missing_cost" value={formData.missing_cost} onChange={onChange} readOnly={readOnly} placeholder="0 ريال" />
+                            <InputField label="إجمالي المبلغ المستحق" id="total_due" value={formData.total_due} onChange={onChange} readOnly={readOnly} placeholder="0 ريال" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="contract-text">
+                    <h3 className="font-bold text-lg mb-2">ملاحظات الفحص العامة</h3>
+                    <textarea 
+                        value={formData.general_inspection_notes || ''} 
+                        onChange={(e) => onChange('general_inspection_notes', e.target.value)} 
+                        readOnly={readOnly}
+                        className="w-full p-3 border rounded-md h-24"
+                        placeholder="ملاحظات عامة حول حالة المواد المرجعة..."
+                    />
+                </div>
+
+                <div className="contract-text">
+                    <h3 className="font-bold text-lg mb-2">إقرار</h3>
+                    <div className="text-sm space-y-2">
+                        <p>أقر أنا الموقع أدناه بأنني قمت بإرجاع المواد المذكورة أعلاه، وأن الفحص تم بحضوري، وأوافق على النتائج المدونة.</p>
+                        <p>كما أتعهد بسداد قيمة المواد التالفة والمفقودة البالغة <strong>{formData.total_due || '______'} ريال</strong> خلال مدة أقصاها 15 يوم من تاريخ هذا المحضر.</p>
+                    </div>
+                </div>
+            </div>
+
+            <footer className="mt-8">
+                <div className="flex justify-between items-center">
+                    <SignatureBox title="مستلم المواد (الشركة)" name={formData.company_receiver} />
+                    <SignatureBox title="مرجع المواد (العميل)" name={formData.client_name} />
+                </div>
+                <div className="text-center mt-4 text-xs text-gray-500 legal-note">
+                    <p>تم الفحص والإرجاع بحضور الطرفين وبالحالة المذكورة أعلاه</p>
+                </div>
+            </footer>
+        </div>
+    );
+};
+
+// === مكون منظومة المستندات ===
+
+const DocumentSuite = () => {
+    const [activeDocument, setActiveDocument] = useState('rental');
+    const [formData, setFormData] = useState({});
+
+    const handleInputChange = useCallback((field, value) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+    }, []);
+
+    const handlePrint = () => {
+        window.print();
+    };
+
+    const documents = [
+        { id: 'rental', name: 'عقد إيجار سقالات', component: RentalContract },
+        { id: 'labor', name: 'عقد عمالة', component: LaborContract },
+        { id: 'commencement', name: 'محضر تسليم واستلام', component: CommencementNote },
+        { id: 'claim', name: 'مذكرة مطالبة مالية', component: ClaimNote },
+        { id: 'delivery', name: 'إشعار تسليم', component: DeliveryNote },
+        { id: 'return', name: 'محضر إرجاع وفحص', component: ReturnNote }
+    ];
+
+    const ActiveDocumentComponent = documents.find(doc => doc.id === activeDocument)?.component;
+
+    return (
+        <div className="max-w-6xl mx-auto">
+            <div className="bg-white p-4 rounded-lg shadow-md mb-6 no-print">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">منظومة المستندات</h2>
+                <div className="flex flex-wrap gap-2">
+                    {documents.map(doc => (
+                        <SubNavButton 
+                            key={doc.id}
+                            text={doc.name} 
+                            onClick={() => setActiveDocument(doc.id)} 
+                            isActive={activeDocument === doc.id} 
+                        />
+                    ))}
+                </div>
+                <div className="mt-4 flex gap-2">
+                    <button 
+                        onClick={handlePrint} 
+                        className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center gap-2"
+                    >
+                        <Printer size={16} />
+                        طباعة
+                    </button>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-lg">
+                {ActiveDocumentComponent && (
+                    <ActiveDocumentComponent 
+                        formData={formData} 
+                        onChange={handleInputChange} 
+                    />
+                )}
+            </div>
         </div>
     );
 };
 
 // === المكون الرئيسي ===
 export default function App() {
-    const [activeView, setActiveView] = useState('aiAgent'); // البدء بالوكيل الذكي
+    const [activeView, setActiveView] = useState('aiAgent');
 
     return (
         <>
