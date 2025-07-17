@@ -2,11 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { Calculator, FileText, Send, Printer, CheckCircle } from 'lucide-react';
+import { FileText, Printer, Bot, Edit, Loader2 } from 'lucide-react';
 
 // --- Reusable Components (Defined first to avoid reference errors) ---
 
-const InputField = ({ label, id, value, onChange, readOnly = false, type = "text", error = null, placeholder = '' }) => (
+const InputField = ({ label, id, value, onChange, readOnly = false, type = "text", placeholder = '' }) => (
     <div className="w-full">
         {label && <label htmlFor={id} className="block text-sm font-bold text-gray-700 mb-1">{label}</label>}
         <input 
@@ -16,9 +16,8 @@ const InputField = ({ label, id, value, onChange, readOnly = false, type = "text
             onChange={(e) => onChange(id, e.target.value)} 
             readOnly={readOnly} 
             placeholder={placeholder}
-            className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${readOnly ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'} ${error ? 'border-red-500' : 'border-gray-300'}`} 
+            className={`w-full p-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${readOnly ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`} 
         />
-        {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
     </div>
 );
 
@@ -68,38 +67,6 @@ const ChecklistItem = ({ label, id, formData, onChange }) => (
         <td className="p-2 border border-gray-200">{label}</td>
         <td className="p-2 border border-gray-200 text-center"><input type="checkbox" checked={formData[id] || false} onChange={(e) => onChange(id, e.target.checked)} className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500" /></td>
     </tr>
-);
-
-const ClaimRow = ({ label, value }) => (
-    <tr>
-        <td className="p-2 border border-gray-200 text-right">{label}</td>
-        <td className="p-2 border border-gray-200 text-left">{value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-    </tr>
-);
-
-const SelectField = ({ label, id, value, onValueChange, options, placeholder, error }) => (
-    <div>
-        <label htmlFor={id} className="block text-sm font-bold text-gray-700 mb-1">{label}</label>
-        <select id={id} value={value || ''} onChange={(e) => onValueChange(e.target.value)} className={`w-full p-2 border rounded-md ${error ? "border-red-500" : "border-gray-300"}`}>
-            <option value="">{placeholder}</option>
-            {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-        </select>
-        {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-    </div>
-);
-
-const CheckboxField = ({ label, id, checked, onCheckedChange }) => (
-    <div className="flex items-center space-x-2">
-        <input type="checkbox" id={id} checked={checked} onChange={(e) => onCheckedChange(e.target.checked)} className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
-        <label htmlFor={id} className="text-sm">{label}</label>
-    </div>
-);
-
-const ResultRow = ({ label, value, isSubtotal = false }) => (
-    <div className={`flex justify-between items-center py-2 ${isSubtotal ? 'border-b-2 border-gray-300 font-medium' : 'border-b border-gray-200'}`}>
-        <span>{label}</span>
-        <span className="font-medium">{value.toLocaleString()} ر.س</span>
-    </div>
 );
 
 const PrintStyles = () => (
@@ -548,13 +515,169 @@ const DocumentSuite = () => {
     );
 };
 
+const AiAgentView = () => {
+    const [prompt, setPrompt] = useState('');
+    const [docType, setDocType] = useState('عقد');
+    const [generatedContent, setGeneratedContent] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+
+    const handleGenerate = async () => {
+        if (!prompt.trim()) {
+            alert("يرجى إدخال وصف للمستند المطلوب.");
+            return;
+        }
+        setIsLoading(true);
+        setGeneratedContent('');
+
+        const fullPrompt = `
+            بصفتك خبيرًا في صياغة المستندات التجارية والقانونية في المملكة العربية السعودية، قم بإنشاء مسودة احترافية للمستند التالي:
+            - نوع المستند: ${docType}
+            - وصف الموضوع والتفاصيل: "${prompt}"
+            - استخدم ترويسة "شركة أعمال الشاهين للمقاولات" في الأعلى.
+            - قم بتنسيق الرد بشكل احترافي وواضح باستخدام Markdown، مع ترك فراغات مناسبة للتواقيع في النهاية إذا لزم الأمر.
+            - تأكد من أن الصياغة قوية وتحمي مصالح الشركة.
+        `;
+
+        let apiKey = "";
+        if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_GEMINI_API_KEY) {
+            apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+        } else if (typeof __gemini_api_key__ !== 'undefined') {
+            apiKey = __gemini_api_key__;
+        }
+
+        if (!apiKey) {
+            const errorMsg = "مفتاح Gemini API غير موجود. يرجى التأكد من إعداده بشكل صحيح.";
+            console.error(errorMsg);
+            setGeneratedContent(errorMsg);
+            setIsLoading(false);
+            return;
+        }
+
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+        const payload = { contents: [{ role: "user", parts: [{ text: fullPrompt }] }] };
+
+        try {
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error.message || response.statusText);
+            }
+            const result = await response.json();
+            if (result.candidates?.[0]?.content?.parts?.[0]) {
+                setGeneratedContent(result.candidates[0].content.parts[0].text);
+                setIsEditing(true); // Automatically enable editing after generation
+            } else {
+                setGeneratedContent("لم يتمكن الذكاء الاصطناعي من إنشاء رد.");
+            }
+        } catch (error) {
+            console.error("Error calling Gemini API:", error);
+            setGeneratedContent(`حدث خطأ أثناء الاتصال بالذكاء الاصطناعي: ${error.message}`);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    const handlePrint = () => {
+        const printableElement = document.getElementById('printable-document');
+        if (printableElement) {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write('<html><head><title>طباعة مستند</title>');
+            printWindow.document.write('<style>@page { size: A4; margin: 1.5cm; } body { direction: rtl; font-family: "Tajawal", sans-serif; line-height: 1.6; } pre { white-space: pre-wrap; word-wrap: break-word; font-family: "Tajawal", sans-serif; font-size: 10pt; } </style>');
+            printWindow.document.write('</head><body>');
+            printWindow.document.write('<pre>' + generatedContent + '</pre>');
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.print();
+        }
+    };
+
+    return (
+        <div className="max-w-5xl mx-auto">
+            <div className="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
+                <div className="flex items-center gap-3 mb-4">
+                    <Bot className="w-8 h-8 text-blue-600" />
+                    <h2 className="text-2xl font-bold text-gray-800">الوكيل الذكي للمستندات</h2>
+                </div>
+                <p className="text-gray-600 mb-6">صف للمساعد الذكي المستند الذي تحتاجه (عقد، مطالبة، عرض سعر، إلخ) مع ذكر أي تفاصيل هامة، وسيقوم بإنشاء مسودة احترافية لك.</p>
+                
+                <div className="space-y-4">
+                    <div>
+                        <label htmlFor="docType" className="block text-sm font-bold text-gray-700 mb-1">اختر نوع المستند الأساسي:</label>
+                        <select id="docType" value={docType} onChange={(e) => setDocType(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500">
+                            <option>عقد</option>
+                            <option>عرض سعر</option>
+                            <option>مطالبة مالية</option>
+                            <option>رسالة رسمية</option>
+                            <option>مستند آخر</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="prompt" className="block text-sm font-bold text-gray-700 mb-1">صف الموضوع والتفاصيل هنا:</label>
+                        <textarea
+                            id="prompt"
+                            rows="4"
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            placeholder="مثال: عقد إيجار سقالات لمشروع فيلا في حي الياسمين، يتضمن بنداً لغرامة التأخير وبنداً للمحافظة على المواد..."
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <button onClick={handleGenerate} disabled={isLoading} className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 shadow-lg flex items-center justify-center gap-2">
+                        {isLoading ? <Loader2 className="animate-spin" /> : <Bot />}
+                        {isLoading ? 'جاري إنشاء المستند...' : 'أنشئ المستند الآن'}
+                    </button>
+                </div>
+            </div>
+
+            {generatedContent && (
+                <div className="mt-8 bg-white p-6 rounded-lg shadow-lg border border-gray-200">
+                    <div className="flex justify-between items-center mb-4">
+                         <h3 className="text-xl font-bold text-gray-800">المستند المجهز: هل ترغب في تعديل شيء؟</h3>
+                         <div>
+                            <button onClick={() => setIsEditing(!isEditing)} className="bg-yellow-500 text-white p-2 rounded-lg hover:bg-yellow-600 mr-2 no-print">
+                                <Edit size={20} />
+                            </button>
+                             <button onClick={handlePrint} className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 no-print">
+                                 <Printer size={20} />
+                             </button>
+                         </div>
+                    </div>
+                    <div id="printable-document" className="printable-content">
+                        {isEditing ? (
+                            <textarea 
+                                value={generatedContent}
+                                onChange={(e) => setGeneratedContent(e.target.value)}
+                                className="w-full h-[60vh] p-4 border rounded-md font-mono text-sm"
+                            />
+                        ) : (
+                            <pre className="whitespace-pre-wrap p-4 bg-gray-50 rounded-md border">{generatedContent}</pre>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 // --- Main App Component ---
 export default function App() {
+    const [activeView, setActiveView] = useState('documents'); // 'documents' or 'aiAgent'
+
     return (
         <>
             <PrintStyles />
             <div dir="rtl" className="bg-gray-100 min-h-screen p-4 sm:p-8" style={{ fontFamily: "'Tajawal', sans-serif" }}>
-                <DocumentSuite />
+                
+                <div className="max-w-6xl mx-auto mb-6 no-print">
+                    <div className="bg-white p-2 rounded-lg shadow-md flex justify-center flex-wrap gap-2">
+                        <NavButton text="منظومة المستندات" icon={<FileText size={16} />} onClick={() => setActiveView('documents')} isActive={activeView === 'documents'} />
+                        <NavButton text="الوكيل الذكي" icon={<Bot size={16} />} onClick={() => setActiveView('aiAgent')} isActive={activeView === 'aiAgent'} />
+                    </div>
+                </div>
+
+                {activeView === 'documents' ? <DocumentSuite /> : <AiAgentView />}
+
             </div>
         </>
     );
