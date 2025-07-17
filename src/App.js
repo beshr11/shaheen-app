@@ -50,7 +50,7 @@ const AppHeader = () => (
             س.ت: 1009148705 | جوال: 0558203077 | المملكة العربية السعودية - الرياض - حي العارض
         </p>
     </header>
- );
+);
 
 const MaterialRow = ({ item, index, formData, onChange, readOnly }) => (
     <tr className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
@@ -142,9 +142,11 @@ const RentalContract = ({ formData, handleInputChange }) => (
             <InputField label="الطرف الثاني (المستأجر):" id="client_name" value={formData.client_name} onChange={handleInputChange} placeholder="اسم الشركة أو الفرد" />
             <InputField label="رقم السجل التجاري/الهوية:" id="client_cr" value={formData.client_cr} onChange={handleInputChange} />
             <h3 className="font-bold pt-4">تمهيد:</h3>
+            {/* CORRECTED: Changed p to div because it contains a block-level InputField */}
             <div>حيث إن المؤجر يمتلك الخبرة والمعدات اللازمة لتأجير الشدات والسقالات المعدنية، وحيث إن المستأجر يرغب في استئجار هذه المعدات لاستخدامها في مشروعه الكائن في <InputField id="project_location" value={formData.project_location} onChange={handleInputChange} placeholder="مدينة - حي - وصف الموقع"/>، فقد اتفق الطرفان على ما يلي:</div>
             <h3 className="font-bold pt-2">المادة (3): فترة الإيجار وآلية احتساب القيمة الإيجارية</h3>
             <p>3.1 **بدء فترة الإيجار:** تبدأ فترة الإيجار رسمياً من التاريخ المثبت في "محضر بدء أعمال".</p>
+            {/* CORRECTED: Changed p to div because it contains a block-level InputField */}
             <div className="flex items-center gap-2">3.2 **القيمة الإيجارية الشهرية:** اتفق الطرفان على أن القيمة الإيجارية الشهرية للمعدات هي (<InputField id="monthly_rent_value" value={formData.monthly_rent_value} onChange={handleInputChange} placeholder="0.00" type="number" /> ريال سعودي)، غير شاملة لضريبة القيمة المضافة.</div>
             <p>3.3 **تمديد فترة الإيجار:** في حال امتدت فترة الإيجار إلى ما بعد الشهر الأول، إذا كانت مدة التمديد من يوم واحد (1) إلى سبعة (7) أيام تقويمية، يتم احتساب الإيجار لهذه الفترة على أساس تناسبي. إذا تجاوزت مدة التمديد سبعة (7) أيام تقويمية، يستحق على المستأجر سداد قيمة إيجار شهر ثانٍ كامل.</p>
             <h3 className="font-bold pt-2">المادة (5): الملكية، المسؤولية، والتعويض</h3>
@@ -175,6 +177,7 @@ const LaborContract = ({ formData, handleInputChange }) => (
             <p className="pt-4"><strong>الطرف الأول (مقدم الخدمة):</strong> شركة أعمال الشاهين للمقاولات، سجل تجاري رقم: 1009148705.</p>
             <InputField label="الطرف الثاني (العميل):" id="client_name" value={formData.client_name} onChange={handleInputChange} />
             <h3 className="font-bold pt-4">المادة (1): نطاق العمل</h3>
+            {/* CORRECTED: Changed p to div because it contains a block-level InputField */}
             <div>يقوم الطرف الأول بتوفير العمالة الفنية اللازمة لتركيب وفك الشدات والسقالات المعدنية الخاصة بالطرف الثاني في مشروعه الكائن في <InputField id="project_location" value={formData.project_location} onChange={handleInputChange} />.</div>
             <h3 className="font-bold pt-2">المادة (2): أجر العمالة (باليومية)</h3>
             <p>اتفق الطرفان على أن أجر العمالة يتم احتسابه باليومية، وجميع العمال يحملون شهادات TUV المعتمدة:</p>
@@ -288,8 +291,10 @@ const ClaimNote = ({ formData, handleInputChange, materials }) => {
                 </tbody>
             </table>
              <h3 className="font-bold text-lg mb-4">معلومات الدفع:</h3>
-             <div className="flex items-center"><strong>اسم البنك:</strong> <InputField id="bank_name" value={formData.bank_name} onChange={handleInputChange} /></div>
-             <div className="flex items-center"><strong>صاحب الحساب:</strong> شركة أعمال الشاهين للمقاولات</div>
+             {/* CORRECTED: Changed p to div for consistency and correctness */}
+             <div className="flex items-center mb-2"><strong>اسم البنك:</strong> <InputField id="bank_name" value={formData.bank_name} onChange={handleInputChange} /></div>
+             <p><strong>صاحب الحساب:</strong> شركة أعمال الشاهين للمقاولات</p>
+             {/* CORRECTED: Changed p to div for consistency and correctness */}
              <div className="flex items-center"><strong>رقم الآيبان:</strong> <InputField id="iban" value={formData.iban} onChange={handleInputChange} /></div>
             <footer className="mt-24 pt-8"><div className="flex flex-col md:flex-row justify-around items-stretch gap-12 mb-12 signature-container"><SignatureBox title="إعداد: شركة أعمال الشاهين" /><SignatureBox title="اعتماد: العميل / الاستشاري" /></div></footer>
         </>
@@ -319,11 +324,12 @@ const ReturnNote = ({ formData, handleInputChange, materials }) => (
     <>
         <AppHeader />
         <h2 className="text-2xl font-bold text-center mb-6">محضر إعادة استلام وفحص المعدات</h2>
+        {/* CORRECTED: Changed wrapper to div to avoid nesting block elements in p */}
         <div className="grid grid-cols-2 gap-4 mb-8">
-             <div><strong>اسم المشروع:</strong> <InputField id="project_name" value={formData.project_name} onChange={handleInputChange} /></div>
+            <div><strong>اسم المشروع:</strong> <InputField id="project_name" value={formData.project_name} onChange={handleInputChange} /></div>
             <div><strong>العميل (المستأجر):</strong> <InputField id="client_name" value={formData.client_name} onChange={handleInputChange} /></div>
             <div><strong>تاريخ الإعادة:</strong> <InputField id="return_date" type="date" value={formData.return_date} onChange={handleInputChange} /></div>
             <div><strong>رقم العقد المرجعي:</strong> <InputField id="equipment_contract_id" value={formData.equipment_contract_id} onChange={handleInputChange} /></div>
         </div>
         <p className="mb-4">بموجبه، يتم إثبات إعادة استلام المعدات الموضحة أدناه من المستأجر. يقر الطرفان بالكميات والحالة المذكورة، والتي ستكون أساس المحاسبة النهائية لأي نقص أو تلف.</p>
-        <div className="overflow-x-auto"><table className="w-full text-sm text-right text-gray-600 border-collapse"><thead className="text-xs text-gray-700 uppercase bg-gray-100"><tr><th className="p-3 border border-gray-300">بيان</th><th className="p-3 border border-gray-300">الكمية المستلمة أساساً</th><th className="p-3 border border-gray-300">الكمية المرتجعة</th><th className="p-3 border border-gray-300">النقص / التالف</th><th className="p-3 border border-gray-300">ملاحظات الفحص</th></tr></thead><tbody>{materials.map((item, index) => (<tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}><td className="p-2 border border-gray-300">{item.type}</td><td className="p-2 border border-gray-300"><input type="number" value={formData
+        <div className="overflow-x-auto"><table className="w-full text-sm text-right text-gray-600 border-collapse"><thead className="text-xs text-gray-700 uppercase bg-gray-100"><tr><th className="p-3 border border-gray-300">بيان</th><th className="p-3 border border-gray-300">الكمية المستلمة أساساً</th><th className="p-3 border border-gray-300">الكمية المرتجعة</th><th className="p-3 border border-gray-300">النقص / التالف</th><th className="p-3 border border-gray-300">ملاحظات الفحص</th></tr></thead><tbody>{materials.map((item, index) => (<tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}><td className="p-2 border border-gray-300">{item.type}</td><td className="p-2 border border-gray-300"><input type="number"
