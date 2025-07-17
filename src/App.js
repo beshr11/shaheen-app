@@ -562,12 +562,7 @@ const AiAgentView = () => {
             - تأكد من أن الصياغة قوية وتحمي مصالح الشركة.
         `;
 
-        let apiKey = "";
-        if (typeof process !== 'undefined' && process.env && process.env.REACT_APP_GEMINI_API_KEY) {
-            apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-        } else if (typeof __gemini_api_key__ !== 'undefined') {
-            apiKey = __gemini_api_key__;
-        }
+        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
 
         if (!apiKey) {
             const errorMsg = "مفتاح Gemini API غير موجود. يرجى التأكد من إعداده بشكل صحيح.";
