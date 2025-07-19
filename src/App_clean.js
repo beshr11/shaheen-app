@@ -143,6 +143,8 @@ class MemoryManager {
     }
 }
 
+// === مكونات المستندات ===
+
 // مكون حقل الإدخال
 const InputField = ({ label, value, onChange, type = "text", placeholder = "", required = false }) => (
     <div className="mb-4">
@@ -235,6 +237,24 @@ const RentalCommencementNote = () => {
                     </label>
                 </div>
 
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
+                    <h3 className="font-bold text-blue-800 mb-2">📋 معلومات المحضر:</h3>
+                    <div className="space-y-2 text-sm">
+                        <div><strong>المؤجر:</strong> {formData.lessor}</div>
+                        <div><strong>المستأجر:</strong> {formData.lessee}</div>
+                        <div><strong>المشروع:</strong> {formData.project}</div>
+                        <div><strong>الموقع:</strong> {formData.location}</div>
+                        <div><strong>رقم العقد:</strong> {formData.contractNumber}</div>
+                        <div><strong>تاريخ العقد:</strong> {formData.contractDate}</div>
+                        <div><strong>تاريخ التركيب:</strong> {formData.installationDate}</div>
+                        <div><strong>تاريخ بدء الإيجار:</strong> {formData.rentalStartDate}</div>
+                        <div><strong>سعر الإيجار الشهري:</strong> {formData.monthlyRate} ريال سعودي</div>
+                        <div><strong>السعر اليومي:</strong> {formData.dailyRate} ريال سعودي</div>
+                        <div><strong>المهندس المشرف:</strong> {formData.engineerName}</div>
+                        <div><strong>يشمل التركيب:</strong> {formData.installationIncluded ? 'نعم' : 'لا'}</div>
+                    </div>
+                </div>
+
                 <h3 className="text-lg font-bold text-gray-800 mt-6 mb-4">جدول الشدات المعدنية المؤجرة:</h3>
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-right text-gray-600 border-collapse">
@@ -282,6 +302,38 @@ const RentalCommencementNote = () => {
                         </tbody>
                     </table>
                 </div>
+
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 mt-6">
+                    <h3 className="font-bold text-yellow-800 mb-3">⚠️ شروط بدء الإيجار المهمة:</h3>
+                    <div className="space-y-2 text-sm text-yellow-900">
+                        <p><strong>1. بدء الإيجار:</strong> {formData.installationIncluded ? 'يبدأ الإيجار بعد اكتمال التركيب' : 'يبدأ الإيجار من تاريخ التسليم'}</p>
+                        <p><strong>2. انتهاء الإيجار:</strong> ينتهي الإيجار عند إشعار المؤجر بالإرجاع</p>
+                        <p><strong>3. الشهر الثاني:</strong> يبدأ إيجار الشهر الثاني بعد 10 أيام من انتهاء الشهر الأول</p>
+                        <p><strong>4. الفترات الأقل من 10 أيام:</strong> تحسب باليوم (نسبة وتناسب) بنفس سعر إيجار الشهر الأول</p>
+                        <p><strong>5. طريقة الحساب:</strong> السعر اليومي = السعر الشهري ÷ 30 يوم</p>
+                        <p><strong>6. المسؤولية:</strong> المستأجر مسؤول عن المحافظة على الشدات من تاريخ بدء الإيجار</p>
+                    </div>
+                </div>
+
+                <div className="mt-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">ملاحظات إضافية:</label>
+                    <textarea
+                        value={formData.notes}
+                        onChange={(e) => handleInputChange('notes', e.target.value)}
+                        rows={3}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="أي ملاحظات إضافية حول بدء الإيجار..."
+                    />
+                </div>
+
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200 mt-6">
+                    <h3 className="font-bold text-green-800 mb-2">✅ إقرار بدء الإيجار:</h3>
+                    <p className="text-sm text-green-900">
+                        نحن الموقعون أدناه نقر بأن إيجار الشدات المعدنية المذكورة أعلاه قد بدأ رسمياً 
+                        {formData.installationIncluded ? ' بعد اكتمال التركيب' : ''} 
+                        في تاريخ <strong>{formData.rentalStartDate}</strong> وفقاً للشروط المتفق عليها في العقد رقم <strong>{formData.contractNumber}</strong>.
+                    </p>
+                </div>
             </div>
 
             <footer className="mt-8 pt-6 border-t border-gray-200">
@@ -311,18 +363,28 @@ const RentalCommencementNote = () => {
                         </div>
                     </div>
                 </div>
+                <div className="legal-note text-center text-xs text-gray-500 mt-4 pt-4 border-t border-gray-200">
+                    <p>هذا المحضر محرر في ثلاث نسخ أصلية، نسخة للمؤجر ونسخة للمستأجر ونسخة للمهندس المشرف</p>
+                    <p>تاريخ المحضر: {new Date().toLocaleDateString('ar-SA')} | رقم المحضر: RC-{formData.contractNumber}-{new Date().getFullYear()}</p>
+                </div>
             </footer>
         </div>
     );
 };
 
-// === الوكيل الذكي المحسن ===
+// === الوكيل الذكي المحسن (تم تغيير الاسم ليتوافق مع الاستدعاء) ===
 const EnhancedAiAgentView = () => {
     const [messages, setMessages] = useState([]);
     const [currentInput, setCurrentInput] = useState('');
     const [docType, setDocType] = useState('عقد إيجار سقالات');
     const [isLoading, setIsLoading] = useState(false);
     const [generatedContent, setGeneratedContent] = useState('');
+    const [conversationStage, setConversationStage] = useState('initial');
+    const [clarificationQuestions, setClarificationQuestions] = useState([]);
+    const [userAnswers, setUserAnswers] = useState({});
+    const [showMemoryPanel, setShowMemoryPanel] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [mcpConnected, setMcpConnected] = useState(false);
     
     const memoryManager = new MemoryManager();
 
@@ -351,9 +413,19 @@ const EnhancedAiAgentView = () => {
     const startNewConversation = useCallback(() => {
         setMessages([]);
         setCurrentInput('');
+        setConversationStage('initial');
+        setClarificationQuestions([]);
+        setUserAnswers({});
         setGeneratedContent('');
         
-        const welcomeMessage = `مرحباً! أنا مساعدك الذكي لإنشاء ${docType}. يرجى وصف ما تحتاجه بالتفصيل، وسأطرح عليك بعض الأسئلة التوضيحية لإنشاء أفضل مستند ممكن.`;
+        const similarConversations = memoryManager.getSimilarConversations(docType, '', 2);
+        let welcomeMessage = `مرحباً! أنا مساعدك الذكي لإنشاء ${docType}. `;
+        
+        if (similarConversations.length > 0) {
+            welcomeMessage += `لاحظت أنك أنشأت مستندات مشابهة من قبل. `;
+        }
+        
+        welcomeMessage += `يرجى وصف ما تحتاجه بالتفصيل، وسأطرح عليك بعض الأسئلة التوضيحية لإنشاء أفضل مستند ممكن.`;
         
         addMessage(welcomeMessage, false);
     }, [docType]);
@@ -364,14 +436,145 @@ const EnhancedAiAgentView = () => {
         addMessage(currentInput, true);
         const userText = currentInput;
         setCurrentInput('');
-        setIsLoading(true);
 
-        // محاكاة معالجة الرسالة
-        setTimeout(() => {
-            addMessage('شكراً لك على رسالتك. سأعمل على إنشاء المستند المطلوب قريباً.', false);
-            setIsLoading(false);
-        }, 1000);
+        if (conversationStage === 'initial') {
+            await handleInitialInput(userText);
+        } else if (conversationStage === 'clarifying') {
+            await handleClarificationAnswer(userText);
+        }
     };
+
+    const handleInitialInput = async (userText) => {
+        setIsLoading(true);
+        addMessage('جاري تحليل طلبك وإعداد الأسئلة التوضيحية...', false);
+
+        try {
+            const similarConversations = memoryManager.getSimilarConversations(docType, userText, 3);
+            const questions = generateClarificationQuestions(docType, userText, similarConversations);
+            setClarificationQuestions(questions);
+            setConversationStage('clarifying');
+
+            addMessage('ممتاز! لإنشاء أفضل مستند ممكن، أحتاج لبعض التوضيحات:', false);
+            
+            questions.forEach((question, index) => {
+                setTimeout(() => {
+                    addMessage(`${index + 1}. ${question}`, false);
+                }, (index + 1) * 500);
+            });
+
+            setTimeout(() => {
+                addMessage('يرجى الإجابة على الأسئلة واحداً تلو الآخر، أو يمكنك الإجابة عليها جميعاً في رسالة واحدة.', false);
+            }, (questions.length + 1) * 500);
+
+        } catch (error) {
+            addMessage('حدث خطأ في تحليل طلبك. يرجى المحاولة مرة أخرى.', false);
+            setConversationStage('initial');
+        }
+
+        setIsLoading(false);
+    };
+
+    const handleClarificationAnswer = async (userText) => {
+        const currentAnswers = { ...userAnswers, [clarificationQuestions.length]: userText };
+        setUserAnswers(currentAnswers);
+
+        if (Object.keys(currentAnswers).length >= clarificationQuestions.length) {
+            addMessage('ممتاز! تم استلام جميع المعلومات. جاري إنشاء المستند...', false);
+            await generateDocument(currentAnswers);
+        } else {
+            addMessage('شكراً لك! يرجى الإجابة على باقي الأسئلة.', false);
+        }
+    };
+
+    const generateClarificationQuestions = (docType, userInput, similarConversations) => {
+        const baseQuestions = {
+            'عقد إيجار سقالات': ['ما هو اسم المستأجر؟', 'ما هو اسم المشروع وموقعه؟', 'ما هي مدة الإيجار؟', 'ما هو المبلغ المتفق عليه؟'],
+            'محضر بدء إيجار الشدات المعدنية': ['ما هو اسم المستأجر؟', 'ما هو اسم المشروع وموقعه؟', 'ما هو رقم العقد؟', 'ما هو تاريخ التركيب؟', 'ما هو سعر الإيجار الشهري؟'],
+            'عقد عمالة': ['ما هو اسم الموظف؟', 'ما هو المنصب؟', 'ما هو الراتب؟', 'ما هو تاريخ بداية العمل؟']
+        };
+
+        let questions = baseQuestions[docType] || [];
+        if (similarConversations.length > 0) {
+            questions.push('لاحظت أنك أنشأت مستندات مشابهة. هل تريد استخدام نفس التفاصيل؟');
+        }
+        return questions;
+    };
+
+    const generateDocument = async (answers) => {
+        setIsLoading(true);
+        setConversationStage('generating');
+
+        // --- استخدام مفتاح API ---
+        // الطريقة الآمنة (موصى بها): استخدم متغيرات البيئة.
+        // const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+        
+        // الطريقة غير الآمنة (للتجربة فقط): استخدام المفتاح مباشرة.
+        const apiKey = "AIzaSyCBNAzNzCHKYzQhGwJbaQxHOht9aMZ5Bhc";
+
+        if (!apiKey) {
+            addMessage("خطأ: مفتاح Gemini API غير موجود. يرجى التأكد من إعداده بشكل صحيح.", false);
+            setIsLoading(false);
+            setConversationStage('initial');
+            return;
+        }
+
+        try {
+            const fullPrompt = `
+                مهمتك هي العمل كمستشار قانوني وتجاري خبير ومتخصص في الأنظمة السعودية لـ "شركة أعمال الشاهين للمقاولات".
+                **المهمة الأساسية:** إنشاء مسودة احترافية للمستند المطلوب بناءً على التفاصيل التالية.
+                **نوع المستند المطلوب:** ${docType}
+                **تفاصيل من المستخدم:** ${Object.values(answers).join(' - ')}
+                **تعليمات صارمة:**
+                1. ابدأ دائماً بترويسة الشركة: "# شركة أعمال الشاهين للمقاولات"
+                2. استخدم تنسيق Markdown مع عناوين واضحة.
+                3. أضف البنود القانونية الضرورية حتى لو لم يذكرها المستخدم.
+                4. اجعل المستند جاهزاً للطباعة.
+                5. أضف قسم التواقيع في النهاية.
+                أنشئ المستند كاملاً الآن:
+            `;
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] } )
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error.message || 'حدث خطأ غير معروف من واجهة برمجة التطبيقات');
+            }
+
+            const data = await response.json();
+            const content = data.candidates[0].content.parts[0].text;
+            
+            setGeneratedContent(content);
+            setConversationStage('completed');
+            addMessage('تم إنشاء المستند بنجاح! يمكنك مراجعته أدناه.', false);
+            addMessage(content, false, 'document');
+
+            memoryManager.saveConversation({
+                docType,
+                userInput: Object.values(answers).join(' '),
+                generatedContent: content,
+                tags: extractTags(Object.values(answers).join(' '))
+            });
+
+        } catch (error) {
+            console.error('خطأ في إنشاء المستند:', error);
+            addMessage(`حدث خطأ في إنشاء المستند: ${error.message}. يرجى المحاولة مرة أخرى.`, false);
+            setConversationStage('initial');
+        }
+
+        setIsLoading(false);
+    };
+
+    const extractTags = (text) => {
+        const keywords = text.toLowerCase().match(/\b[\u0600-\u06FF]+\b/g) || [];
+        return [...new Set(keywords)].slice(0, 5);
+    };
+
+    const toggleMcpConnection = () => setMcpConnected(!mcpConnected);
+    const searchMemory = () => { /* ... */ };
 
     useEffect(() => {
         startNewConversation();
@@ -389,129 +592,26 @@ const EnhancedAiAgentView = () => {
                                 <p className="text-blue-100">مدعوم بـ Gemini 1.5 Flash</p>
                             </div>
                         </div>
+                        <div className="flex items-center space-x-2 space-x-reverse">
+                            <button onClick={toggleMcpConnection} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${mcpConnected ? 'bg-green-500' : 'bg-gray-500'}`}>
+                                {mcpConnected ? '🟢 MCP متصل' : '🔴 MCP غير متصل'}
+                            </button>
+                            <button onClick={() => setShowMemoryPanel(!showMemoryPanel)} className="p-2 bg-blue-700 hover:bg-blue-800 rounded-lg">
+                                <History size={20} />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 <div className="flex">
+                    {showMemoryPanel && (
+                        <div className="w-80 bg-gray-50 border-r p-4">
+                            {/* ... محتوى لوحة الذاكرة ... */}
+                        </div>
+                    )}
+
                     <div className="flex-1 flex flex-col">
                         <div className="p-4 border-b bg-gray-50">
                             <label className="block text-sm font-medium text-gray-700 mb-2">اختر نوع المستند:</label>
-                            <select 
-                                value={docType} 
-                                onChange={(e) => setDocType(e.target.value)} 
-                                className="w-full p-3 border rounded-lg"
-                            >
-                                {docTypes.map(type => (
-                                    <option key={type} value={type}>{type}</option>
-                                ))}
-                            </select>
-                        </div>
-                        
-                        <div className="flex-1 p-4 space-y-4 max-h-96 overflow-y-auto">
-                            {messages.map(msg => (
-                                <div key={msg.id} className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${msg.isUser ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>
-                                        {msg.type === 'document' ? (
-                                            <div className="prose prose-sm">
-                                                <ReactMarkdown>{msg.content}</ReactMarkdown>
-                                            </div>
-                                        ) : (
-                                            <p className="text-sm">{msg.content}</p>
-                                        )}
-                                        <p className="text-xs mt-1 opacity-70">{msg.timestamp}</p>
-                                    </div>
-                                </div>
-                            ))}
-                            {isLoading && (
-                                <div className="flex justify-start">
-                                    <div className="bg-gray-100 px-4 py-2 rounded-lg flex items-center">
-                                        <Loader2 size={16} className="animate-spin" />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        
-                        <div className="p-4 border-t">
-                            <div className="flex space-x-2 space-x-reverse">
-                                <input 
-                                    type="text" 
-                                    value={currentInput} 
-                                    onChange={(e) => setCurrentInput(e.target.value)} 
-                                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} 
-                                    placeholder="اكتب رسالتك هنا..." 
-                                    className="flex-1 p-3 border rounded-lg" 
-                                    disabled={isLoading} 
-                                />
-                                <button 
-                                    onClick={handleSendMessage} 
-                                    disabled={isLoading || !currentInput.trim()} 
-                                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                                >
-                                    <Send size={20} />
-                                </button>
-                                <button 
-                                    onClick={startNewConversation} 
-                                    className="px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-                                >
-                                    محادثة جديدة
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                {generatedContent && (
-                    <div className="border-t p-6 bg-gray-50">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-bold">📄 المستند المولد</h3>
-                            <button 
-                                onClick={() => window.print()} 
-                                className="flex items-center space-x-2 space-x-reverse px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                            >
-                                <Printer size={16} />
-                                <span>طباعة</span>
-                            </button>
-                        </div>
-                        <div className="bg-white p-6 rounded-lg shadow-sm border prose prose-lg max-w-none">
-                            <ReactMarkdown>{generatedContent}</ReactMarkdown>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
-
-// === المكون الرئيسي للتطبيق ===
-export default function App() {
-    const [activeView, setActiveView] = useState('aiAgent');
-
-    return (
-        <div dir="rtl" className="bg-gray-100 min-h-screen p-4 sm:p-8" style={{ fontFamily: "'Tajawal', sans-serif" }}>
-            <div className="max-w-6xl mx-auto mb-6">
-                <div className="bg-white p-2 rounded-lg shadow-md flex justify-center flex-wrap gap-2">
-                    <button
-                        onClick={() => setActiveView('documents')}
-                        className={`flex items-center space-x-2 space-x-reverse px-6 py-3 rounded-lg font-medium transition-colors duration-200 ${
-                            activeView === 'documents' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                    >
-                        <FileText size={16} />
-                        <span>منظومة المستندات</span>
-                    </button>
-                    <button
-                        onClick={() => setActiveView('aiAgent')}
-                        className={`flex items-center space-x-2 space-x-reverse px-6 py-3 rounded-lg font-medium transition-colors duration-200 ${
-                            activeView === 'aiAgent' ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                    >
-                        <Bot size={16} />
-                        <span>الوكيل الذكي</span>
-                    </button>
-                </div>
-            </div>
-
-            {activeView === 'documents' ? <RentalCommencementNote /> : <EnhancedAiAgentView />}
-        </div>
-    );
-}
+                            <select value={docType} onChange={(e) => setDocType(e.target.value)} className="w-full p-3 border rounded-lg">
+                                {docTypes.map(type => <option key={type} value={type}>{type}</option>)}
