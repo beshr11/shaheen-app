@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileText, Printer, Bot, Edit, Loader2, History, Star, Search, Trash2, Download, Upload, MessageCircle, Send } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, react-markdown, lucide-react from 'react-markdown';
 
 // === قائمة المواد المحدثة ===
 const MATERIALS_LIST = [
@@ -78,7 +78,7 @@ class MemoryManager {
         const conversations = this.getAllConversations();
         const keywords = this.extractKeywords(userInput);
         
-        return conversations
+        return conversations {
             .filter(conv => conv.docType === docType)
             .map(conv => ({
                 ...conv,
