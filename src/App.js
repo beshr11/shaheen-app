@@ -28,7 +28,7 @@ const MATERIALS_LIST = [
     { id: 22, type: "لوح بوندي 4م", unit: "قطعة", defaultQuantity: 0 }
 ];
 
-// === نظام الذاكرة والتعلم ===
+// === نظام الذاكرة والتعلم المحسن للغة العربية ===
 class MemoryManager {
     constructor() {
         this.storageKey = 'shaheen_ai_memory';
@@ -63,20 +63,119 @@ class MemoryManager {
         }
     }
 
+    // وظيفة البحث المحسنة للغة العربية
     searchConversations(query) {
         const conversations = this.getAllConversations();
-        const searchTerm = query.toLowerCase();
+        const normalizedQuery = this.normalizeArabicText(query);
+        const queryTerms = this.extractArabicTerms(normalizedQuery);
         
-        return conversations.filter(conv => 
-            conv.userInput?.toLowerCase().includes(searchTerm) ||
-            conv.docType?.toLowerCase().includes(searchTerm) ||
-            conv.tags?.some(tag => tag.toLowerCase().includes(searchTerm))
+        return conversations.filter(conv => {
+            // البحث في المدخلات
+            const normalizedInput = this.normalizeArabicText(conv.userInput || '');
+            const inputTerms = this.extractArabicTerms(normalizedInput);
+            
+            // البحث في نوع المستند
+            const normalizedDocType = this.normalizeArabicText(conv.docType || '');
+            const docTypeTerms = this.extractArabicTerms(normalizedDocType);
+            
+            // البحث في العلامات
+            const normalizedTags = (conv.tags || []).map(tag => this.normalizeArabicText(tag));
+            
+            // تحقق من التطابق مع التطبيع والجذر
+            return this.hasSemanticMatch(queryTerms, inputTerms) ||
+                   this.hasSemanticMatch(queryTerms, docTypeTerms) ||
+                   normalizedTags.some(tag => this.hasSemanticMatch(queryTerms, this.extractArabicTerms(tag)));
+        });
+    }
+
+    // تطبيع النص العربي - إزالة التشكيل وتوحيد الأحرف
+    normalizeArabicText(text) {
+        if (!text) return '';
+        
+        return text
+            // إزالة التشكيل (الحركات)
+            .replace(/[\u064B-\u0652\u0670\u0640]/g, '')
+            // توحيد الهمزات
+            .replace(/[أإآ]/g, 'ا')
+            .replace(/[ؤ]/g, 'و')
+            .replace(/[ئ]/g, 'ي')
+            // توحيد التاء المربوطة والمفتوحة
+            .replace(/[ة]/g, 'ه')
+            // توحيد الياء
+            .replace(/[ى]/g, 'ي')
+            // إزالة المسافات الزائدة وتحويل لأحرف صغيرة
+            .trim()
+            .toLowerCase();
+    }
+
+    // استخراج المصطلحات العربية مع تحليل أساسي للجذر
+    extractArabicTerms(text) {
+        if (!text) return [];
+        
+        const stopWords = [
+            'في', 'من', 'إلى', 'على', 'عن', 'مع', 'هذا', 'هذه', 'التي', 'الذي',
+            'بين', 'تحت', 'فوق', 'أمام', 'خلف', 'يمين', 'شمال', 'داخل', 'خارج',
+            'قبل', 'بعد', 'أثناء', 'خلال', 'حتى', 'منذ', 'حول', 'ضد', 'نحو',
+            'كان', 'كانت', 'يكون', 'تكون', 'أكون', 'نكون', 'يا', 'أي', 'كل',
+            'بعض', 'جميع', 'كلا', 'كليهما', 'أو', 'أم', 'لكن', 'لكن', 'غير',
+            'سوى', 'عدا', 'خلا', 'ما', 'لا', 'لن', 'لم', 'ليس', 'ليست'
+        ];
+        
+        const terms = text.split(/\s+/)
+            .filter(word => word.length > 2 && !stopWords.includes(word))
+            .map(word => this.getWordRoot(word));
+            
+        return [...new Set(terms)]; // إزالة التكرار
+    }
+
+    // تحليل أساسي للجذر العربي
+    getWordRoot(word) {
+        if (!word || word.length < 3) return word;
+        
+        // إزالة السوابق الشائعة
+        const prefixes = ['ال', 'و', 'ف', 'ب', 'ك', 'ل', 'مع', 'على', 'في', 'من'];
+        let cleanWord = word;
+        
+        for (const prefix of prefixes) {
+            if (cleanWord.startsWith(prefix) && cleanWord.length > prefix.length + 2) {
+                cleanWord = cleanWord.substring(prefix.length);
+                break;
+            }
+        }
+        
+        // إزالة اللواحق الشائعة
+        const suffixes = ['ان', 'ات', 'ون', 'ين', 'ها', 'هم', 'هن', 'كم', 'كن', 'تم', 'تن'];
+        for (const suffix of suffixes) {
+            if (cleanWord.endsWith(suffix) && cleanWord.length > suffix.length + 2) {
+                cleanWord = cleanWord.substring(0, cleanWord.length - suffix.length);
+                break;
+            }
+        }
+        
+        return cleanWord;
+    }
+
+    // فحص التطابق الدلالي
+    hasSemanticMatch(queryTerms, targetTerms) {
+        if (!queryTerms.length || !targetTerms.length) return false;
+        
+        return queryTerms.some(queryTerm => 
+            targetTerms.some(targetTerm => {
+                // تطابق مباشر
+                if (queryTerm === targetTerm) return true;
+                
+                // تطابق جزئي (يحتوي على)
+                if (queryTerm.length > 3 && targetTerm.includes(queryTerm)) return true;
+                if (targetTerm.length > 3 && queryTerm.includes(targetTerm)) return true;
+                
+                return false;
+            })
         );
     }
 
     getSimilarConversations(docType, userInput, limit = 3) {
         const conversations = this.getAllConversations();
-        const keywords = this.extractKeywords(userInput);
+        const keywords = this.extractArabicTerms(this.normalizeArabicText(userInput));
         
         return conversations
             .filter(conv => conv.docType === docType)
@@ -89,14 +188,14 @@ class MemoryManager {
     }
 
     extractKeywords(text) {
-        const stopWords = ['في', 'من', 'إلى', 'على', 'عن', 'مع', 'هذا', 'هذه', 'التي', 'الذي'];
-        return text.toLowerCase()
-            .split(/\s+/)
-            .filter(word => word.length > 2 && !stopWords.includes(word));
+        // استخدام الوظيفة المحسنة للنصوص العربية
+        return this.extractArabicTerms(this.normalizeArabicText(text));
     }
 
     calculateSimilarity(keywords1, text2) {
-        const keywords2 = this.extractKeywords(text2);
+        if (!text2) return 0;
+        const keywords2 = this.extractArabicTerms(this.normalizeArabicText(text2));
+        if (keywords1.length === 0 || keywords2.length === 0) return 0;
         const intersection = keywords1.filter(word => keywords2.includes(word));
         return intersection.length / Math.max(keywords1.length, keywords2.length);
     }
@@ -134,11 +233,15 @@ class MemoryManager {
             }
         });
 
+        const mostUsedDocType = Object.keys(docTypes).length > 0 
+            ? Object.keys(docTypes).reduce((a, b) => docTypes[a] > docTypes[b] ? a : b)
+            : '';
+
         return {
             totalConversations: conversations.length,
             docTypeDistribution: docTypes,
-            averageRating: ratings.length > 0 ? ratings.reduce((a, b) => a + b) / ratings.length : 0,
-            mostUsedDocType: Object.keys(docTypes).reduce((a, b) => docTypes[a] > docTypes[b] ? a : b, '')
+            averageRating: ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0,
+            mostUsedDocType: mostUsedDocType
         };
     }
 }
@@ -372,7 +475,7 @@ const RentalCommencementNote = () => {
     );
 };
 
-// === الوكيل الذكي المحسن (تم تغيير الاسم ليتوافق مع الاستدعاء) ===
+// === الوكيل الذكي المحسن ===
 const EnhancedAiAgentView = () => {
     const [messages, setMessages] = useState([]);
     const [currentInput, setCurrentInput] = useState('');
@@ -504,15 +607,11 @@ const EnhancedAiAgentView = () => {
         setIsLoading(true);
         setConversationStage('generating');
 
-        // --- استخدام مفتاح API ---
-        // الطريقة الآمنة (موصى بها): استخدم متغيرات البيئة.
-        // const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
-        
-        // الطريقة غير الآمنة (للتجربة فقط): استخدام المفتاح مباشرة.
-        const apiKey = "AIzaSyCBNAzNzCHKYzQhGwJbaQxHOht9aMZ5Bhc";
+        // استخدام مفتاح API من متغيرات البيئة
+        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
 
         if (!apiKey) {
-            addMessage("خطأ: مفتاح Gemini API غير موجود. يرجى التأكد من إعداده بشكل صحيح.", false);
+            addMessage("خطأ: مفتاح Gemini API غير موجود. يرجى التأكد من إعداده في متغيرات البيئة.", false);
             setIsLoading(false);
             setConversationStage('initial');
             return;
@@ -569,12 +668,19 @@ const EnhancedAiAgentView = () => {
     };
 
     const extractTags = (text) => {
-        const keywords = text.toLowerCase().match(/\b[\u0600-\u06FF]+\b/g) || [];
-        return [...new Set(keywords)].slice(0, 5);
+        const normalizedText = memoryManager.normalizeArabicText(text);
+        const terms = memoryManager.extractArabicTerms(normalizedText);
+        return terms.slice(0, 5); // أول 5 مصطلحات
     };
 
     const toggleMcpConnection = () => setMcpConnected(!mcpConnected);
-    const searchMemory = () => { /* ... */ };
+    
+    const searchMemory = () => {
+        if (!searchQuery.trim()) return;
+        const results = memoryManager.searchConversations(searchQuery);
+        console.log('نتائج البحث:', results);
+        // يمكن إضافة منطق لعرض النتائج في واجهة المستخدم
+    };
 
     useEffect(() => {
         startNewConversation();
@@ -606,7 +712,21 @@ const EnhancedAiAgentView = () => {
                 <div className="flex">
                     {showMemoryPanel && (
                         <div className="w-80 bg-gray-50 border-r p-4">
-                            {/* ... محتوى لوحة الذاكرة ... */}
+                            <div className="mb-4">
+                                <h3 className="font-bold text-gray-800 mb-2">البحث في الذاكرة</h3>
+                                <div className="flex space-x-2 space-x-reverse">
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="ابحث في المحادثات السابقة..."
+                                        className="flex-1 p-2 border rounded"
+                                    />
+                                    <button onClick={searchMemory} className="px-3 py-2 bg-blue-600 text-white rounded">
+                                        <Search size={16} />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -615,180 +735,85 @@ const EnhancedAiAgentView = () => {
                             <label className="block text-sm font-medium text-gray-700 mb-2">اختر نوع المستند:</label>
                             <select value={docType} onChange={(e) => setDocType(e.target.value)} className="w-full p-3 border rounded-lg">
                                 {docTypes.map(type => <option key={type} value={type}>{type}</option>)}
-                            
-اقتراح معرفة جديدة
-لاتتوقف 
-اقتراح معرفة جديدة
-أعتذر بشدة مرة أخرى عن الانقطاع. لن يتكرر ذلك.
-إليك الكود الكامل والمتواصل من البداية إلى النهاية، مع دمج جميع الأجزاء التي ناقشناها، بما في ذلك المكون App المحدث ومفتاح API الذي قدمته.
-javascript
-import React, { useState, useEffect, useCallback } from 'react';
-import { FileText, Printer, Bot, Edit, Loader2, History, Star, Search, Trash2, Download, Upload, MessageCircle, Send } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
+                            </select>
+                        </div>
 
-// === قائمة المواد المحدثة ===
-const MATERIALS_LIST = [
-    { id: 1, type: "قائم 3م", unit: "قطعة", defaultQuantity: 750 },
-    { id: 2, type: "قائم 2.5م", unit: "قطعة", defaultQuantity: 300 },
-    { id: 3, type: "قائم 2م", unit: "قطعة", defaultQuantity: 0 },
-    { id: 4, type: "قائم 1.5م", unit: "قطعة", defaultQuantity: 0 },
-    { id: 5, type: "قائم 1م", unit: "قطعة", defaultQuantity: 0 },
-    { id: 6, type: "لدجر 1.8م", unit: "قطعة", defaultQuantity: 1400 },
-    { id: 7, type: "لدجر 1.5م", unit: "قطعة", defaultQuantity: 0 },
-    { id: 8, type: "لدجر 1.60م", unit: "قطعة", defaultQuantity: 0 },
-    { id: 9, type: "لدجر 1.00م", unit: "قطعة", defaultQuantity: 0 },
-    { id: 10, type: "لدجر 1.25م", unit: "قطعة", defaultQuantity: 0 },
-    { id: 11, type: "لدجر 0.9م", unit: "قطعة", defaultQuantity: 0 },
-    { id: 12, type: "لدجر 1.2م", unit: "قطعة", defaultQuantity: 1200 },
-    { id: 13, type: "لدجر 0.8م", unit: "قطعة", defaultQuantity: 0 },
-    { id: 14, type: "لدجر 0.6م", unit: "قطعة", defaultQuantity: 0 },
-    { id: 15, type: "يوهد", unit: "قطعة", defaultQuantity: 922 },
-    { id: 16, type: "ميزانيه", unit: "قطعة", defaultQuantity: 568 },
-    { id: 17, type: "دوكا المنيوم", unit: "قطعة", defaultQuantity: 0 },
-    { id: 18, type: "وصلات", unit: "قطعة", defaultQuantity: 0 },
-    { id: 19, type: "ماسورة", unit: "قطعة", defaultQuantity: 0 },
-    { id: 20, type: "كلامب", unit: "قطعة", defaultQuantity: 0 },
-    { id: 21, type: "بليتة تثبيت", unit: "قطعة", defaultQuantity: 0 },
-    { id: 22, type: "لوح بوندي 4م", unit: "قطعة", defaultQuantity: 0 }
-];
+                        <div className="flex-1 p-4 space-y-4 max-h-96 overflow-y-auto">
+                            {messages.map(msg => (
+                                <div key={msg.id} className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${msg.isUser ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>
+                                        {msg.type === 'document' ? 
+                                            <div className="prose prose-sm">
+                                                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                                            </div> : 
+                                            <p className="text-sm">{msg.content}</p>
+                                        }
+                                        <p className="text-xs mt-1 opacity-70">{msg.timestamp}</p>
+                                    </div>
+                                </div>
+                            ))}
+                            {isLoading && (
+                                <div className="flex justify-start">
+                                    <div className="bg-gray-100 px-4 py-2 rounded-lg flex items-center">
+                                        <Loader2 size={16} className="animate-spin mr-2" />
+                                        <span className="text-sm">جاري المعالجة...</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
-// === نظام الذاكرة والتعلم ===
-class MemoryManager {
-    constructor() {
-        this.storageKey = 'shaheen_ai_memory';
-        this.maxConversations = 100;
-    }
+                        <div className="p-4 border-t">
+                            <div className="flex space-x-2 space-x-reverse">
+                                <input
+                                    type="text"
+                                    value={currentInput}
+                                    onChange={(e) => setCurrentInput(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                                    placeholder="اكتب رسالتك هنا..."
+                                    className="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    disabled={isLoading}
+                                />
+                                <button 
+                                    onClick={handleSendMessage}
+                                    disabled={isLoading || !currentInput.trim()}
+                                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Send size={20} />
+                                </button>
+                                <button 
+                                    onClick={startNewConversation}
+                                    className="px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                                >
+                                    محادثة جديدة
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-    saveConversation(conversationData) {
-        const conversations = this.getAllConversations();
-        const newConversation = {
-            id: this.generateId(),
-            timestamp: new Date().toISOString(),
-            ...conversationData
-        };
-        
-        conversations.unshift(newConversation);
-        
-        if (conversations.length > this.maxConversations) {
-            conversations.splice(this.maxConversations);
-        }
-        
-        localStorage.setItem(this.storageKey, JSON.stringify(conversations));
-        return newConversation.id;
-    }
+                {generatedContent && (
+                    <div className="border-t p-6 bg-gray-50">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-bold text-gray-800">📄 المستند المولد</h3>
+                            <button 
+                                onClick={() => window.print()} 
+                                className="flex items-center space-x-2 space-x-reverse px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                            >
+                                <Printer size={16} />
+                                <span>طباعة</span>
+                            </button>
+                        </div>
+                        <div className="bg-white p-6 rounded-lg shadow-sm border prose prose-lg max-w-none">
+                            <ReactMarkdown>{generatedContent}</ReactMarkdown>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
-    getAllConversations() {
-        try {
-            const stored = localStorage.getItem(this.storageKey);
-            return stored ? JSON.parse(stored) : [];
-        } catch (error) {
-            console.error('خطأ في قراءة الذاكرة:', error);
-            return [];
-        }
-    }
-
-    searchConversations(query) {
-        const conversations = this.getAllConversations();
-        const searchTerm = query.toLowerCase();
-        
-        return conversations.filter(conv => 
-            conv.userInput?.toLowerCase().includes(searchTerm) ||
-            conv.docType?.toLowerCase().includes(searchTerm) ||
-            conv.tags?.some(tag => tag.toLowerCase().includes(searchTerm))
-        );
-    }
-
-    getSimilarConversations(docType, userInput, limit = 3) {
-        const conversations = this.getAllConversations();
-        const keywords = this.extractKeywords(userInput);
-        
-        return conversations
-            .filter(conv => conv.docType === docType)
-            .map(conv => ({
-                ...conv,
-                similarity: this.calculateSimilarity(keywords, conv.userInput)
-            }))
-            .sort((a, b) => b.similarity - a.similarity)
-            .slice(0, limit);
-    }
-
-    extractKeywords(text) {
-        const stopWords = ['في', 'من', 'إلى', 'على', 'عن', 'مع', 'هذا', 'هذه', 'التي', 'الذي'];
-        return text.toLowerCase()
-            .split(/\s+/)
-            .filter(word => word.length > 2 && !stopWords.includes(word));
-    }
-
-    calculateSimilarity(keywords1, text2) {
-        if (!text2) return 0;
-        const keywords2 = this.extractKeywords(text2);
-        if (keywords1.length === 0 || keywords2.length === 0) return 0;
-        const intersection = keywords1.filter(word => keywords2.includes(word));
-        return intersection.length / Math.max(keywords1.length, keywords2.length);
-    }
-
-    generateId() {
-        return Date.now().toString(36) + Math.random().toString(36).substr(2);
-    }
-
-    deleteConversation(id) {
-        const conversations = this.getAllConversations();
-        const filtered = conversations.filter(conv => conv.id !== id);
-        localStorage.setItem(this.storageKey, JSON.stringify(filtered));
-    }
-
-    updateConversation(id, updates) {
-        const conversations = this.getAllConversations();
-        const index = conversations.findIndex(conv => conv.id === id);
-        if (index !== -1) {
-            conversations[index] = { ...conversations[index], ...updates };
-            localStorage.setItem(this.storageKey, JSON.stringify(conversations));
-        }
-    }
-
-    getStats() {
-        const conversations = this.getAllConversations();
-        const docTypes = {};
-        const ratings = [];
-        
-        conversations.forEach(conv => {
-            if (conv.docType) {
-                docTypes[conv.docType] = (docTypes[conv.docType] || 0) + 1;
-            }
-            if (conv.rating) {
-                ratings.push(conv.rating);
-            }
-        });
-
-        const mostUsedDocType = Object.keys(docTypes).length > 0 
-            ? Object.keys(docTypes).reduce((a, b) => docTypes[a] > docTypes[b] ? a : b)
-            : '';
-
-        return {
-            totalConversations: conversations.length,
-            docTypeDistribution: docTypes,
-            averageRating: ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0,
-            mostUsedDocType: mostUsedDocType
-        };
-    }
-}
-
-// === مكونات واجهة المستخدم ===
-
-const InputField = ({ label, value, onChange, type = "text", placeholder = "", required = false }) => (
-    <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
-        <input
-            type={type}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-            required={required}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-    </div>
-);
-
+// === مكونات أخرى ===
 const NavButton = ({ text, icon, onClick, isActive }) => (
     <button
         onClick={onClick}
@@ -820,61 +845,6 @@ const PrintStyles = () => (
     `}</style>
 );
 
-// === مكونات المستندات ===
-
-const RentalCommencementNote = () => {
-    const [formData, setFormData] = useState({
-        lessor: 'شركة أعمال الشاهين للمقاولات',
-        lessee: '',
-        project: '',
-        location: '',
-        contractDate: '',
-        installationDate: '',
-        rentalStartDate: '',
-        monthlyRate: '',
-        dailyRate: '',
-        installationIncluded: true,
-        contractNumber: '',
-        engineerName: '',
-        notes: '',
-        ...MATERIALS_LIST.reduce((acc, item) => {
-            acc[`quantity_${item.id}`] = item.defaultQuantity;
-            acc[`installed_${item.id}`] = item.defaultQuantity;
-            return acc;
-        }, {})
-    });
-
-    const handleInputChange = (field, value) => {
-        setFormData(prev => {
-            const newData = { ...prev, [field]: value };
-            if (field === 'monthlyRate' && value) {
-                newData.dailyRate = (parseFloat(value) / 30).toFixed(2);
-            }
-            return newData;
-        });
-    };
-
-    return (
-        <div className="printable-area bg-white p-8 rounded-lg shadow-lg max-w-4xl mx-auto">
-            <header className="text-center pb-6 border-b-2 border-gray-200 mb-6">
-                <img src="https://i.ibb.co/bx1cZBC/image.png" alt="شعار شركة أعمال الشاهين" className="h-20 mx-auto mb-4" />
-                <h1 className="text-2xl font-bold text-gray-800 mb-2">شركة أعمال الشاهين للمقاولات</h1>
-                <div className="text-sm text-gray-600">
-                    <p>المملكة العربية السعودية - الرياض</p>
-                    <p>هاتف: +966 XX XXX XXXX | البريد الإلكتروني: info@shaheen.com</p>
-                </div>
-            </header>
-            <div className="contract-text space-y-6">
-                <h2 className="text-xl font-bold text-center text-gray-800 mb-6">محضر بدء إيجار الشدات المعدنية</h2>
-                {/* ... باقي محتوى النموذج ... */}
-            </div>
-            <footer className="mt-8 pt-6 border-t border-gray-200">
-                {/* ... باقي محتوى التذييل ... */}
-            </footer>
-        </div>
-     );
-};
-
 const DocumentSuite = () => {
     const [activeDocument, setActiveDocument] = useState('rentalCommencement');
     const documents = {
@@ -891,188 +861,15 @@ const DocumentSuite = () => {
             <div className="bg-gray-50 p-6 rounded-lg">
                 <div className="flex items-center justify-between mb-6 no-print">
                     <h3 className="text-xl font-bold text-gray-800">{documents[activeDocument].title}</h3>
-                    <button onClick={() => window.print()} className="flex items-center space-x-2 space-x-reverse px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    <button 
+                        onClick={() => window.print()} 
+                        className="flex items-center space-x-2 space-x-reverse px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
                         <Printer size={16} />
                         <span>طباعة</span>
                     </button>
                 </div>
                 <ActiveComponent />
-            </div>
-        </div>
-    );
-};
-
-// === الوكيل الذكي ===
-const EnhancedAiAgentView = () => {
-    const [messages, setMessages] = useState([]);
-    const [currentInput, setCurrentInput] = useState('');
-    const [docType, setDocType] = useState('عقد إيجار سقالات');
-    const [isLoading, setIsLoading] = useState(false);
-    const [generatedContent, setGeneratedContent] = useState('');
-    const [conversationStage, setConversationStage] = useState('initial');
-    const [clarificationQuestions, setClarificationQuestions] = useState([]);
-    const [userAnswers, setUserAnswers] = useState({});
-    const [showMemoryPanel, setShowMemoryPanel] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [mcpConnected, setMcpConnected] = useState(false);
-    
-    const memoryManager = new MemoryManager();
-
-    const docTypes = ['عقد إيجار سقالات', 'محضر بدء إيجار الشدات المعدنية', 'عقد عمالة', 'محضر تسليم واستلام', 'مذكرة مطالبة مالية', 'إشعار تسليم', 'محضر إرجاع وفحص'];
-
-    const addMessage = (content, isUser = false, type = 'text') => {
-        const newMessage = { id: Date.now(), content, isUser, type, timestamp: new Date().toLocaleTimeString('ar-SA') };
-        setMessages(prev => [...prev, newMessage]);
-    };
-
-    const startNewConversation = useCallback(() => {
-        setMessages([]);
-        setCurrentInput('');
-        setConversationStage('initial');
-        setClarificationQuestions([]);
-        setUserAnswers({});
-        setGeneratedContent('');
-        let welcomeMessage = `مرحباً! أنا مساعدك الذكي لإنشاء ${docType}. يرجى وصف ما تحتاجه بالتفصيل.`;
-        addMessage(welcomeMessage, false);
-    }, [docType]);
-
-    const handleSendMessage = async () => {
-        if (!currentInput.trim()) return;
-        const userText = currentInput;
-        addMessage(userText, true);
-        setCurrentInput('');
-        if (conversationStage === 'initial') await handleInitialInput(userText);
-        else if (conversationStage === 'clarifying') await handleClarificationAnswer(userText);
-    };
-
-    const handleInitialInput = async (userText) => {
-        setIsLoading(true);
-        addMessage('جاري تحليل طلبك...', false);
-        const questions = ['ما هو اسم المستأجر؟', 'ما هو اسم المشروع وموقعه؟', 'ما هي مدة الإيجار؟', 'ما هو المبلغ المتفق عليه؟'];
-        setClarificationQuestions(questions);
-        setConversationStage('clarifying');
-        addMessage('ممتاز! للإكمال، أحتاج لبعض التوضيحات:', false);
-        questions.forEach((q, i) => setTimeout(() => addMessage(`${i + 1}. ${q}`, false), (i + 1) * 500));
-        setIsLoading(false);
-    };
-
-    const handleClarificationAnswer = async (userText) => {
-        const currentAnswers = { ...userAnswers, [clarificationQuestions.length]: userText };
-        setUserAnswers(currentAnswers);
-        if (Object.keys(currentAnswers).length >= clarificationQuestions.length) {
-            addMessage('شكراً لك! جاري إنشاء المستند...', false);
-            await generateDocument(currentAnswers);
-        } else {
-            addMessage('شكراً لك! يرجى الإجابة على السؤال التالي.', false);
-        }
-    };
-
-    const generateDocument = async (answers) => {
-        setIsLoading(true);
-        setConversationStage('generating');
-        
-        // !! تنبيه أمني: لا تترك مفتاح API هنا في الكود النهائي !!
-        // استخدم متغيرات البيئة (process.env.REACT_APP_GEMINI_API_KEY) في التطبيق الفعلي
-        const apiKey = "AIzaSyCBNAzNzCHKYzQhGwJbaQxHOht9aMZ5Bhc";
-
-        if (!apiKey) {
-            addMessage("خطأ: مفتاح Gemini API غير موجود.", false);
-            setIsLoading(false);
-            setConversationStage('initial');
-            return;
-        }
-
-        const fullPrompt = `
-            مهمتك هي العمل كمستشار قانوني خبير لـ "شركة أعمال الشاهين للمقاولات".
-            أنشئ مسودة احترافية للمستند التالي:
-            - نوع المستند: ${docType}
-            - تفاصيل من المستخدم: ${Object.values(answers).join(' - ')}
-            - تعليمات: استخدم تنسيق Markdown، أضف البنود القانونية الضرورية، واجعل المستند جاهزاً للطباعة مع قسم للتواقيع.
-        `;
-
-        try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] } )
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error.message || 'API Error');
-            }
-
-            const data = await response.json();
-            const content = data.candidates[0].content.parts[0].text;
-            
-            setGeneratedContent(content);
-            setConversationStage('completed');
-            addMessage('تم إنشاء المستند بنجاح!', false);
-            addMessage(content, false, 'document');
-            memoryManager.saveConversation({ docType, userInput: Object.values(answers).join(' '), generatedContent: content });
-
-        } catch (error) {
-            console.error('Error:', error);
-            addMessage(`حدث خطأ: ${error.message}`, false);
-            setConversationStage('initial');
-        }
-        setIsLoading(false);
-    };
-
-    useEffect(() => {
-        startNewConversation();
-    }, [docType, startNewConversation]);
-
-    return (
-        <div className="max-w-6xl mx-auto">
-            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6">
-                    {/* ... رأس الوكيل الذكي ... */}
-                </div>
-                <div className="flex">
-                    {/* ... لوحة الذاكرة الجانبية (اختياري) ... */}
-                    <div className="flex-1 flex flex-col">
-                        <div className="p-4 border-b bg-gray-50">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">اختر نوع المستند:</label>
-                            <select value={docType} onChange={(e) => setDocType(e.target.value)} className="w-full p-3 border rounded-lg">
-                                {docTypes.map(type => <option key={type} value={type}>{type}</option>)}
-                            </select>
-                        </div>
-                        <div className="flex-1 p-4 space-y-4 max-h-96 overflow-y-auto">
-                            {messages.map(msg => (
-                                <div key={msg.id} className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${msg.isUser ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}>
-                                        {msg.type === 'document' ? <div className="prose prose-sm"><ReactMarkdown>{msg.content}</ReactMarkdown></div> : <p className="text-sm">{msg.content}</p>}
-                                        <p className="text-xs mt-1 opacity-70">{msg.timestamp}</p>
-                                    </div>
-                                </div>
-                            ))}
-                            {isLoading && <div className="flex justify-start"><div className="bg-gray-100 px-4 py-2 rounded-lg flex items-center"><Loader2 size={16} className="animate-spin" /></div></div>}
-                        </div>
-                        <div className="p-4 border-t">
-                            <div className="flex space-x-2 space-x-reverse">
-                                <input type="text" value={currentInput} onChange={(e) => setCurrentInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="اكتب رسالتك هنا..." className="flex-1 p-3 border rounded-lg" disabled={isLoading} />
-                                <button onClick={handleSendMessage} disabled={isLoading || !currentInput.trim()} className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-                                    <Send size={20} />
-                                </button>
-                                <button onClick={startNewConversation} className="px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700">محادثة جديدة</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                {generatedContent && (
-                    <div className="border-t p-6 bg-gray-50">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-bold">📄 المستند المولد</h3>
-                            <button onClick={() => window.print()} className="flex items-center space-x-2 space-x-reverse px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                                <Printer size={16} /><span>طباعة</span>
-                            </button>
-                        </div>
-                        <div className="bg-white p-6 rounded-lg shadow-sm border prose prose-lg max-w-none">
-                            <ReactMarkdown>{generatedContent}</ReactMarkdown>
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     );
@@ -1089,8 +886,18 @@ export default function App() {
                 
                 <div className="max-w-6xl mx-auto mb-6 no-print">
                     <div className="bg-white p-2 rounded-lg shadow-md flex justify-center flex-wrap gap-2">
-                        <NavButton text="منظومة المستندات" icon={<FileText size={16} />} onClick={() => setActiveView('documents')} isActive={activeView === 'documents'} />
-                        <NavButton text="الوكيل الذكي" icon={<Bot size={16} />} onClick={() => setActiveView('aiAgent')} isActive={activeView === 'aiAgent'} />
+                        <NavButton 
+                            text="منظومة المستندات" 
+                            icon={<FileText size={16} />} 
+                            onClick={() => setActiveView('documents')} 
+                            isActive={activeView === 'documents'} 
+                        />
+                        <NavButton 
+                            text="الوكيل الذكي" 
+                            icon={<Bot size={16} />} 
+                            onClick={() => setActiveView('aiAgent')} 
+                            isActive={activeView === 'aiAgent'} 
+                        />
                     </div>
                 </div>
 
