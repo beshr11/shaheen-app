@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileText, Printer, Bot, Edit, Loader2, History, Star, Search, Trash2, Download, Upload, MessageCircle, Send } from 'lucide-react';
-import ReactMarkdown, react-markdown, lucide-react from 'react-markdown';
+import ReactMarkdown, from 'react-markdown';
 
 // === قائمة المواد المحدثة ===
 const MATERIALS_LIST = [
