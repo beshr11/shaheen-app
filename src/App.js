@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileText, Printer, Bot, Edit, Loader2, History, Star, Search, Trash2, Download, Upload, MessageCircle, Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-
+import DOMPurify from 'dompurify';
 // === قائمة المواد المحدثة ===
 const MATERIALS_LIST = [
     { id: 1, type: "قائم 3م", unit: "قطعة", defaultQuantity: 0 },
@@ -38,11 +38,8 @@ class MemoryManager {
     // تنظيف وتعقيم النصوص المدخلة
     sanitizeInput(input) {
         if (typeof input !== 'string') return '';
-        return input
-            .trim()
-            .replace(/<script[^>]*>.*?<\/script>/gi, '') // إزالة السكريبت
-            .replace(/<[^>]*>/g, '') // إزالة HTML tags
-            .substring(0, 1000); // تحديد طول النص
+        // استخدم DOMPurify لتعقيم المدخلات
+        return DOMPurify.sanitize(input).trim().substring(0, 1000);
     }
 
     saveConversation(conversationData) {
