@@ -1,6 +1,75 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { FileText, Printer, Bot, Edit, Loader2, History, Star, Search, Trash2, Download, Upload, MessageCircle, Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+
+// === Error Boundary for Better Error Handling ===
+
+/**
+ * Error boundary component to catch and handle React errors gracefully
+ * Provides user-friendly error messages and recovery options
+ */
+class ErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null, errorInfo: null };
+    }
+
+    static getDerivedStateFromError(error) {
+        // Update state so the next render will show the fallback UI
+        return { hasError: true };
+    }
+
+    componentDidCatch(error, errorInfo) {
+        // Log error details for debugging
+        console.error('Error caught by boundary:', error, errorInfo);
+        this.setState({
+            error,
+            errorInfo
+        });
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+                    <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+                        <div className="text-red-500 text-6xl mb-4">⚠️</div>
+                        <h1 className="text-2xl font-bold text-gray-800 mb-4">حدث خطأ غير متوقع</h1>
+                        <p className="text-gray-600 mb-6">
+                            نعتذر، حدث خطأ في التطبيق. يرجى تحديث الصفحة أو الاتصال بالدعم الفني.
+                        </p>
+                        <div className="space-x-4 space-x-reverse">
+                            <button 
+                                onClick={() => window.location.reload()}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                تحديث الصفحة
+                            </button>
+                            <button 
+                                onClick={() => this.setState({ hasError: false, error: null, errorInfo: null })}
+                                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                            >
+                                إعادة المحاولة
+                            </button>
+                        </div>
+                        {process.env.NODE_ENV === 'development' && this.state.error && (
+                            <details className="mt-6 text-left">
+                                <summary className="cursor-pointer text-sm text-gray-500">تفاصيل الخطأ (للمطورين)</summary>
+                                <pre className="mt-2 text-xs bg-gray-100 p-4 rounded overflow-auto">
+                                    {this.state.error && this.state.error.toString()}
+                                    <br />
+                                    {this.state.errorInfo.componentStack}
+                                </pre>
+                            </details>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        return this.props.children;
+    }
+}
 
 // === قائمة المواد المحدثة ===
 const MATERIALS_LIST = [
@@ -244,21 +313,35 @@ class MemoryManager {
  * @param {string} [props.type="text"] - HTML input type (text, email, date, etc.)
  * @param {string} [props.placeholder=""] - Placeholder text
  * @param {boolean} [props.required=false] - Whether field is required
+ * @param {string} [props.id] - Unique ID for the input field
+ * @param {string} [props.ariaLabel] - ARIA label for accessibility
  * @returns {JSX.Element} Styled input field with label
  */
-const InputField = ({ label, value, onChange, type = "text", placeholder = "", required = false }) => (
-    <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
-        <input
-            type={type}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-            required={required}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-    </div>
-);
+const InputField = ({ label, value, onChange, type = "text", placeholder = "", required = false, id, ariaLabel }) => {
+    const inputId = id || `input-${label.replace(/\s+/g, '-').toLowerCase()}`;
+    
+    return (
+        <div className="mb-4">
+            <label 
+                htmlFor={inputId}
+                className="block text-sm font-medium text-gray-700 mb-2"
+            >
+                {label} {required && <span className="text-red-500" aria-label="مطلوب">*</span>}
+            </label>
+            <input
+                id={inputId}
+                type={type}
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder={placeholder}
+                required={required}
+                aria-label={ariaLabel || label}
+                aria-required={required}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:outline-none transition-colors"
+            />
+        </div>
+    );
+};
 
 /**
  * Comprehensive rental commencement note component for metal scaffolding
@@ -534,17 +617,23 @@ const EnhancedAiAgentView = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [mcpConnected, setMcpConnected] = useState(false);
     
-    const memoryManager = new MemoryManager();
+    /**
+     * Memoized memory manager instance to prevent recreation on every render
+     */
+    const memoryManager = useMemo(() => new MemoryManager(), []);
 
-    const docTypes = [
+    /**
+     * Memoized document types array to prevent unnecessary re-renders
+     */
+    const docTypes = useMemo(() => [
         'عقد إيجار سقالات',
         'محضر بدء إيجار الشدات المعدنية',
-        'عقد عمالة', 
+        'عقد عمالة',
         'محضر تسليم واستلام',
         'مذكرة مطالبة مالية',
         'إشعار تسليم',
         'محضر إرجاع وفحص'
-    ];
+    ], []);
 
     /**
      * Add a new message to the conversation history
@@ -553,7 +642,7 @@ const EnhancedAiAgentView = () => {
      * @param {string} [type="text"] - Message type (text or document)
      * @returns {Object} The created message object
      */
-    const addMessage = (content, isUser = false, type = 'text') => {
+    const addMessage = useCallback((content, isUser = false, type = 'text') => {
         const newMessage = {
             id: Date.now(),
             content,
@@ -563,7 +652,7 @@ const EnhancedAiAgentView = () => {
         };
         setMessages(prev => [...prev, newMessage]);
         return newMessage;
-    };
+    }, []);
 
     /**
      * Initialize a new conversation session
@@ -595,7 +684,7 @@ const EnhancedAiAgentView = () => {
      * Routes to appropriate handler based on conversation stage
      * @returns {Promise<void>}
      */
-    const handleSendMessage = async () => {
+    const handleSendMessage = useCallback(async () => {
         if (!currentInput.trim()) return;
 
         addMessage(currentInput, true);
@@ -607,7 +696,7 @@ const EnhancedAiAgentView = () => {
         } else if (conversationStage === 'clarifying') {
             await handleClarificationAnswer(userText);
         }
-    };
+    }, [currentInput, conversationStage, addMessage]);
 
     /**
      * Process initial user input and generate clarification questions
@@ -858,11 +947,15 @@ const EnhancedAiAgentView = () => {
 const NavButton = ({ text, icon, onClick, isActive }) => (
     <button
         onClick={onClick}
-        className={`flex items-center space-x-2 space-x-reverse px-6 py-3 rounded-lg font-medium transition-colors duration-200 ${
-            isActive ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        aria-pressed={isActive}
+        aria-label={text}
+        className={`flex items-center space-x-2 space-x-reverse px-6 py-3 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+            isActive 
+                ? 'bg-blue-500 text-white' 
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 focus:bg-gray-200'
         }`}
     >
-        {icon}
+        <span aria-hidden="true">{icon}</span>
         <span>{text}</span>
     </button>
 );
@@ -906,7 +999,6 @@ const DocumentSuite = () => {
     );
 };
 
-// === Main App Component ===
 /**
  * Main application component that provides document management and AI-powered document generation
  * 
@@ -925,7 +1017,7 @@ const DocumentSuite = () => {
  * 
  * @returns {JSX.Element} The main application interface
  */
-export default function App() {
+function AppContent() {
     const [activeView, setActiveView] = useState('aiAgent');
 
     return (
@@ -950,5 +1042,17 @@ export default function App() {
                 {activeView === 'documents' ? <DocumentSuite /> : <EnhancedAiAgentView />}
             </div>
         </>
+    );
+}
+
+/**
+ * Main App component wrapped with Error Boundary for better error handling
+ * @returns {JSX.Element} The complete application with error boundary
+ */
+export default function App() {
+    return (
+        <ErrorBoundary>
+            <AppContent />
+        </ErrorBoundary>
     );
 }
