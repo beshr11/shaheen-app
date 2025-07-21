@@ -19,22 +19,27 @@ export const InputField: React.FC<InputFieldProps> = ({
   type = "text", 
   placeholder = "", 
   required = false 
-}) => (
-  <div className="mb-4">
-    <label className="block text-sm font-medium text-gray-700 mb-2">
-      {label}
-      {required && <span className="text-red-500 ml-1">*</span>}
-    </label>
-    <input
-      type={type}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      required={required}
-      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-    />
-  </div>
-);
+}) => {
+  const inputId = `input-${label.replace(/\s+/g, '-').toLowerCase()}`;
+  
+  return (
+    <div className="mb-4">
+      <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-2">
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      <input
+        id={inputId}
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        required={required}
+        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+      />
+    </div>
+  );
+};
 
 /**
  * NavButton Component
