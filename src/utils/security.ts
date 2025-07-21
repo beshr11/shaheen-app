@@ -13,10 +13,19 @@ export const sanitizeInput = (input: string): string => {
     return '';
   }
 
-  return input
-    .replace(/[<>]/g, '') // Remove angle brackets to prevent basic XSS
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+=/gi, '') // Remove event handlers
+  // Repeatedly remove multi-character patterns to prevent incomplete sanitization
+  let sanitized = input;
+  let previous;
+  do {
+    previous = sanitized;
+    sanitized = sanitized
+      .replace(/javascript:/gi, '') // Remove javascript: protocol
+      .replace(/on\w+=/gi, '');    // Remove event handlers
+  } while (sanitized !== previous);
+
+  // Remove angle brackets to prevent basic XSS and trim whitespace
+  return sanitized
+    .replace(/[<>]/g, '')
     .trim();
 };
 
