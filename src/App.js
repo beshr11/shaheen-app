@@ -213,7 +213,7 @@ const RentalCommencementNote = () => {
                 <h2 className="text-xl font-bold text-center text-gray-800 mb-6">محضر بدء إيجار الشدات المعدنية</h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <InputField label="المؤجر" value={formData.lessor} onChange={(value) => handleInputChange('lessor', value)} /> {/* Fixed: Removed extra space in parameter */}
+                    <InputField label="المؤجر" value={formData.lessor} onChange={(value) => handleInputChange('lessor', value)} />
                     <InputField label="المستأجر" value={formData.lessee} onChange={(value) => handleInputChange('lessee', value)} />
                     <InputField label="اسم المشروع" value={formData.project} onChange={(value) => handleInputChange('project', value)} />
                     <InputField label="موقع المشروع" value={formData.location} onChange={(value) => handleInputChange('location', value)} />
