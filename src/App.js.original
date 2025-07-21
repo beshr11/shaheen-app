@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { FileText, Printer, Bot, Edit, Loader2, History, Star, Search, Trash2, Download, Upload, MessageCircle, Send } from 'lucide-react';
-import ReactMarkdown, from 'react-markdown';
+import ReactMarkdown from 'react-markdown';
 
 // === قائمة المواد المحدثة ===
 const MATERIALS_LIST = [
@@ -78,7 +78,7 @@ class MemoryManager {
         const conversations = this.getAllConversations();
         const keywords = this.extractKeywords(userInput);
         
-        return conversations {
+        return conversations
             .filter(conv => conv.docType === docType)
             .map(conv => ({
                 ...conv,
@@ -212,7 +212,7 @@ const RentalCommencementNote = () => {
                 <h2 className="text-xl font-bold text-center text-gray-800 mb-6">محضر بدء إيجار الشدات المعدنية</h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <InputField label="المؤجر" value={formData.lessor} onChange={(value ) => handleInputChange('lessor', value)} />
+                    <InputField label="المؤجر" value={formData.lessor} onChange={(value) => handleInputChange('lessor', value)} />
                     <InputField label="المستأجر" value={formData.lessee} onChange={(value) => handleInputChange('lessee', value)} />
                     <InputField label="اسم المشروع" value={formData.project} onChange={(value) => handleInputChange('project', value)} />
                     <InputField label="موقع المشروع" value={formData.location} onChange={(value) => handleInputChange('location', value)} />
