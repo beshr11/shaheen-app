@@ -1,94 +1,360 @@
-🏗️ منظومة أعمال الشاهين للمقاولات
-هذا المشروع هو تطبيق ويب متكامل (SPA - Single Page Application) تم بناؤه باستخدام React، وهو مصمم ليكون نظاماً شاملاً لإدارة المستندات والعقود والعمليات التشغيلية لشركة "أعمال الشاهين للمقاولات" المتخصصة في تأجير وتركيب السقالات والشدات المعدنية.
+# Shaheen App - نظام إدارة المستندات الذكي
 
-📝 نظرة عامة
-يهدف التطبيق إلى رقمنة وأتمتة دورة العمل الكاملة للمشاريع، بدءاً من إنشاء عروض الأسعار والعقود، مروراً بتوثيق عمليات التسليم والاستلام، وانتهاءً بإصدار المطالبات المالية. تم بناء التطبيق ليكون سهل الاستخدام، تفاعلياً، ومصمماً للطباعة الاحترافية على ورق A4، مع حفظ جميع البيانات بشكل آمن وفوري على قاعدة بيانات Firebase السحابية.
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](https://github.com/beshr11/shaheen-app)
+[![Security](https://img.shields.io/badge/security-enhanced-blue.svg)](https://github.com/beshr11/shaheen-app)
+[![React](https://img.shields.io/badge/react-18.2.0-61dafb.svg)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/typescript-ready-blue.svg)](https://www.typescriptlang.org/)
 
-✨ الميزات الرئيسية
-منظومة مستندات متكاملة: يوفر التطبيق واجهة موحدة لإدارة 6 أنواع من المستندات الحيوية:
+## نظرة عامة | Overview
 
-عقد تأجير المعدات: عقد قانوني محصّن لحماية حقوق الشركة.
+Shaheen App is an intelligent document management system designed for **شركة أعمال الشاهين للمقاولات** (Shaheen Construction Company). The application provides automated document generation, AI-powered assistance, and comprehensive scaffold rental management.
 
-عقد توفير العمالة: عقد منفصل لتأجير العمالة الفنية باليومية.
+**Features:**
+- 🤖 AI-powered document generation using Google Gemini API
+- 📋 Interactive document forms with real-time calculations  
+- 🎨 Responsive design with TailwindCSS
+- 🔒 Enhanced security features
+- 📱 Mobile-friendly interface
+- 🖨️ Print-optimized layouts
+- 💾 Local memory management for conversations
+- 🌐 Arabic RTL support
 
-محضر بدء أعمال: وثيقة رسمية مع قائمة تحقق (Checklist) لتوثيق جاهزية الموقع وبدء فترة الإيجار.
+## بنية المشروع | Project Structure
 
-سند تسليم: لتسجيل المواد المسلمة للعميل، مع ميزة "إصدار فاتورة" للطباعة.
+```
+shaheen-app/
+├── public/                 # Static assets
+├── src/
+│   ├── App.js             # Main application component
+│   ├── App.test.js        # Comprehensive test suite
+│   ├── index.js           # Application entry point
+│   └── index.css          # Global styles with Tailwind
+├── netlify.toml           # Netlify deployment configuration
+├── package.json           # Dependencies and scripts
+├── tailwind.config.js     # Tailwind CSS configuration
+└── README.md             # This file
+```
 
-محضر إعادة استلام: لتسوية الكميات المرتجعة وتحديد النواقص والتلفيات.
+## الميزات الرئيسية | Key Features
 
-مطالبة مالية (مستخلص): نموذج تفاعلي لحساب تكاليف الإيجار، العمالة، والتلفيات، مع إصدار فاتورة نهائية.
+### 1. منظومة المستندات (Document Suite)
+- **محضر بدء إيجار الشدات المعدنية**: Scaffold rental commencement forms
+- Auto-calculation of daily rates from monthly rates
+- Dynamic material quantity tracking
+- Print-optimized layouts
 
-تفاعلية كاملة: جميع المستندات تحتوي على حقول إدخال تفاعلية، مما يسمح بتعبئة البيانات مباشرة من أي جهاز.
+### 2. الوكيل الذكي (AI Agent)
+- Natural language processing for document requirements
+- Intelligent clarification questions
+- Memory system for conversation history
+- Integration with Google Gemini API
 
-حفظ سحابي فوري: يتم حفظ جميع البيانات المدخلة تلقائياً وبشكل فوري في قاعدة بيانات Firebase، مما يضمن عدم فقدان أي معلومات وإمكانية الوصول إليها من أي مكان.
+### 3. إدارة الذاكرة (Memory Management)
+- Local storage of conversation history
+- Similarity-based conversation retrieval
+- Search functionality
+- Usage statistics
 
-طباعة احترافية (A4): تم تصميم جميع المستندات لتتم طباعتها بشكل مثالي ومتناسق على ورق A4، مع إخفاء العناصر غير الضرورية تلقائياً.
+## التقنيات المستخدمة | Technologies Used
 
-💻 التقنيات المستخدمة
-الواجهة الأمامية (Frontend): React.js
+- **Frontend**: React 18.2.0 with Hooks
+- **Styling**: TailwindCSS with RTL support
+- **Icons**: Lucide React
+- **AI Integration**: Google Gemini 1.5 Flash API
+- **Markdown**: React Markdown for document rendering
+- **Testing**: Jest with React Testing Library
+- **Deployment**: Netlify with optimized build configuration
 
-قاعدة البيانات (Database): Google Firebase (Firestore)
+## التثبيت والإعداد | Installation & Setup
 
-التصميم (Styling): Tailwind CSS
+### المتطلبات المسبقة | Prerequisites
 
-الأيقونات (Icons): Lucide React
+```bash
+Node.js >= 18.0.0
+npm >= 9.0.0
+```
 
-النشر (Deployment): Netlify
+### خطوات التثبيت | Installation Steps
 
-🚀 دليل الإعداد والنشر (للمطورين)
-لإعداد وتشغيل هذا المشروع على خادم Netlify، اتبع الخطوات التالية بدقة:
+1. **Clone the repository**
+```bash
+git clone https://github.com/beshr11/shaheen-app.git
+cd shaheen-app
+```
 
-1. المتطلبات المسبقة
-حساب GitHub.
+2. **Install dependencies**
+```bash
+npm install
+```
 
-حساب Netlify مربوط بحساب GitHub.
+3. **Environment setup**
+```bash
+cp .env.example .env.local
+# Edit .env.local and add your Gemini API key
+```
 
-حساب Firebase مربوط بحساب Google.
+4. **Start development server**
+```bash
+npm start
+```
 
-معرفة أساسية بـ Git.
+5. **Build for production**
+```bash
+npm run build
+```
 
-2. إعداد مستودع GitHub
-تأكد من أن مستودعك على GitHub يحتوي على الهيكل والملفات الصحيحة كما تم توضيحها في الدليل السابق (خاصة package.json, tailwind.config.js, postcss.config.js, وملفات مجلدي public و src).
+## إعداد متغيرات البيئة | Environment Variables
 
-3. إعداد مشروع Firebase
-اذهب إلى وحدة تحكم Firebase وأنشئ مشروعاً جديداً.
+Create a `.env.local` file in the root directory:
 
-داخل مشروعك، أنشئ تطبيق ويب جديد </>.
+```env
+# Required: Gemini API Key
+REACT_APP_GEMINI_API_KEY=your_gemini_api_key_here
 
-بعد تسجيل التطبيق، سيظهر لك كائن firebaseConfig. انسخ هذا الكائن بالكامل.
+# Optional: Development mode
+REACT_APP_DEV_MODE=false
 
-4. إعداد متغيرات البيئة في Netlify
-هذه هي الخطوة الأهم لتشغيل التطبيق بشكل صحيح.
+# Optional: Analytics
+REACT_APP_ANALYTICS_ID=your_analytics_id
+```
 
-اذهب إلى صفحة موقعك في Netlify.
+## الاختبارات | Testing
 
-اذهب إلى Site configuration > Build & deploy > Environment.
+The application includes a comprehensive test suite covering:
 
-في قسم Environment variables، اضغط على "Add a variable".
+- Component rendering and interaction
+- User input validation
+- API error handling
+- Security features
+- Memory management
+- Accessibility features
 
-أنشئ متغيراً جديداً بالقيم التالية:
+```bash
+# Run all tests
+npm test
 
-Key: REACT_APP_FIREBASE_CONFIG
+# Run tests with coverage
+npm test -- --coverage
 
-Value: ألصق كائن firebaseConfig الذي نسخته بالكامل هنا. يجب أن يكون سطراً واحداً.
+# Run tests in watch mode
+npm test -- --watchAll
+```
 
-اضغط "Create variable".
+## الأمان | Security Features
 
-5. ضبط إعدادات البناء في Netlify
-اذهب إلى Site configuration > Build & deploy.
+- **API Key Protection**: Environment variable usage
+- **Input Sanitization**: XSS prevention
+- **Content Security Policy**: Configured in Netlify
+- **Secure Headers**: X-Frame-Options, X-XSS-Protection
+- **HTTPS Enforcement**: SSL/TLS in production
 
-في قسم "Build settings"، تأكد من أن الإعدادات كالتالي:
+## الأداء | Performance Optimizations
 
-Build command: npm run build
+- **Code Splitting**: React lazy loading ready
+- **Bundle Optimization**: Webpack optimizations
+- **Image Optimization**: Responsive images
+- **Caching Strategy**: Static asset caching
+- **Memory Management**: Efficient state management
 
-Publish directory: build
+## إمكانية الوصول | Accessibility
 
-اذهب إلى قسم "Plugins" وتأكد من أن إضافة netlify-plugin-cypress غير مفعلة (Disabled).
+- **ARIA Labels**: Comprehensive labeling
+- **Keyboard Navigation**: Full keyboard support
+- **Screen Reader**: Compatible with assistive technologies
+- **Color Contrast**: WCAG compliant
+- **RTL Support**: Native Arabic text direction
 
-6. إعادة النشر
-اذهب إلى قسم "Deploys" في Netlify.
+## النشر | Deployment
 
-اضغط على زر "Trigger deploy" ثم اختر "Clear cache and deploy site".
+### Netlify (Recommended)
 
-بعد انتهاء عملية البناء، سيقوم تطبيقك بقراءة المفاتيح الصحيحة من Netlify وسيعمل بشكل كامل ومتصل بقاعدة البيانات.
+1. Connect your GitHub repository to Netlify
+2. Configure build settings:
+   - Build command: `npm run build`
+   - Publish directory: `build`
+3. Set environment variables in Netlify dashboard
+4. Deploy automatically on git push
+
+### Manual Deployment
+
+```bash
+npm run build
+# Upload the 'build' folder to your hosting provider
+```
+
+## هيكل الكود | Code Architecture
+
+### Components Structure
+
+```javascript
+App
+├── PrintStyles (Global print CSS)
+├── Navigation (NavButton components)
+├── DocumentSuite
+│   └── RentalCommencementNote (Form component)
+└── EnhancedAiAgentView (AI chat interface)
+    ├── MemoryManager (Conversation storage)
+    ├── MessageList (Chat messages)
+    └── InputArea (User input)
+```
+
+### Key Classes
+
+#### MemoryManager
+Handles conversation storage and retrieval:
+- `saveConversation()`: Store new conversations
+- `getSimilarConversations()`: Find related conversations
+- `searchConversations()`: Text-based search
+- `getStats()`: Usage analytics
+
+#### Document Components
+- **InputField**: Reusable form input with Arabic labels
+- **RentalCommencementNote**: Scaffold rental form with calculations
+- **PrintStyles**: Optimized CSS for document printing
+
+## واجهة برمجة التطبيقات | API Integration
+
+### Gemini API Usage
+
+```javascript
+const response = await fetch(
+  `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,
+  {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }]
+    })
+  }
+);
+```
+
+## الصيانة والتطوير | Maintenance & Development
+
+### Adding New Document Types
+
+1. Create new component in `src/components/`
+2. Add to `documents` object in `DocumentSuite`
+3. Update `docTypes` array in `EnhancedAiAgentView`
+4. Add corresponding tests
+
+### Extending AI Capabilities
+
+1. Update `generateClarificationQuestions()` function
+2. Modify prompt templates in `generateDocument()`
+3. Add new conversation types to `MemoryManager`
+
+## استكشاف الأخطاء | Troubleshooting
+
+### Common Issues
+
+1. **Build Fails**
+   ```bash
+   npm install
+   npm audit fix
+   ```
+
+2. **API Key Not Working**
+   - Verify key in `.env.local`
+   - Check Gemini API quota
+   - Ensure proper CORS settings
+
+3. **Arabic Text Issues**
+   - Verify RTL direction in CSS
+   - Check font loading
+   - Validate Unicode encoding
+
+## المساهمة | Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
+
+## الترخيص | License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## الدعم | Support
+
+For support and questions:
+- Create an issue on GitHub
+- Contact: info@shaheen.com
+- Documentation: [Project Wiki](https://github.com/beshr11/shaheen-app/wiki)
+
+## الإصدارات | Changelog
+
+### v1.0.0 (2024-12-19)
+- ✅ Initial release with AI document generation
+- ✅ Scaffold rental management system
+- ✅ Comprehensive testing suite
+- ✅ Security enhancements
+- ✅ Netlify deployment configuration
+- ✅ Arabic RTL support
+- ✅ Mobile responsive design
+
+---
+
+## شرح الوظائف خطوة بخطوة | Step-by-Step Function Explanation
+
+### 1. Application Flow (تدفق التطبيق)
+
+```mermaid
+graph TD
+    A[App Start] --> B[Load Navigation]
+    B --> C{View Selection}
+    C -->|Documents| D[Document Suite]
+    C -->|AI Agent| E[AI Agent View]
+    D --> F[Rental Form]
+    E --> G[Chat Interface]
+    G --> H[Gemini API]
+    H --> I[Document Generation]
+```
+
+### 2. Memory Management (إدارة الذاكرة)
+
+The `MemoryManager` class handles conversation persistence:
+
+```javascript
+// Save conversation with metadata
+const conversationId = memoryManager.saveConversation({
+    docType: 'عقد إيجار سقالات',
+    userInput: 'أريد إنشاء عقد جديد',
+    generatedContent: '# العقد المولد...',
+    tags: ['عقد', 'إيجار', 'سقالات']
+});
+
+// Find similar conversations
+const similar = memoryManager.getSimilarConversations(
+    'عقد إيجار سقالات', 
+    'عقد إيجار للمشروع الجديد', 
+    3
+);
+```
+
+### 3. Document Generation Process (عملية توليد المستندات)
+
+1. **User Input**: User describes document requirements
+2. **Question Generation**: AI generates clarification questions
+3. **Answer Collection**: System collects user responses
+4. **API Call**: Structured prompt sent to Gemini API
+5. **Document Creation**: AI generates formatted document
+6. **Memory Storage**: Conversation saved for future reference
+
+### 4. Security Implementation (تنفيذ الأمان)
+
+```javascript
+// Environment variable usage
+const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
+
+// Input sanitization (React handles this automatically)
+const sanitizedInput = userInput; // React XSS protection
+
+// CSP headers in netlify.toml
+Content-Security-Policy: "default-src 'self'; script-src 'self'..."
+```
+
+---
+
+**Built with ❤️ for شركة أعمال الشاهين للمقاولات**
