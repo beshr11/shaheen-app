@@ -187,6 +187,19 @@ const InputField = ({ label, value, onChange, type = "text", placeholder = "", r
     </div>
 );
 
+// مكون الأزرار التنقل
+const NavButton = ({ text, icon, onClick, isActive }) => (
+    <button
+        onClick={onClick}
+        className={`flex items-center space-x-2 space-x-reverse px-6 py-3 rounded-lg font-medium transition-colors duration-200 ${
+            isActive ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        }`}
+    >
+        {icon}
+        <span>{text}</span>
+    </button>
+);
+
 // === محضر بدء إيجار الشدات المعدنية ===
 const RentalCommencementNote = () => {
     const [formData, setFormData] = useState({
@@ -395,6 +408,43 @@ const RentalCommencementNote = () => {
                     <p>تاريخ المحضر: {new Date().toLocaleDateString('ar-SA')} | رقم المحضر: RC-{formData.contractNumber}-{new Date().getFullYear()}</p>
                 </div>
             </footer>
+        </div>
+    );
+};
+
+// === مجموعة المستندات ===
+const DocumentSuite = () => {
+    const [activeDocument, setActiveDocument] = useState('rentalCommencement');
+    
+    const documents = {
+        rentalCommencement: { 
+            component: RentalCommencementNote, 
+            title: 'محضر بدء إيجار الشدات المعدنية', 
+            icon: <FileText size={16} /> 
+        }
+    };
+    
+    const ActiveComponent = documents[activeDocument].component;
+
+    return (
+        <div className="space-y-8">
+            <div className="text-center">
+                <h2 className="text-2xl font-bold text-gray-800 mb-4">منظومة المستندات</h2>
+                <p className="text-gray-600 mb-6">محضر بدء إيجار الشدات المعدنية مع الشروط المتقدمة</p>
+            </div>
+            <div className="bg-gray-50 p-6 rounded-lg">
+                <div className="flex items-center justify-between mb-6 no-print">
+                    <h3 className="text-xl font-bold text-gray-800">{documents[activeDocument].title}</h3>
+                    <button 
+                        onClick={() => window.print()} 
+                        className="flex items-center space-x-2 space-x-reverse px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                        <Printer size={16} />
+                        <span>طباعة</span>
+                    </button>
+                </div>
+                <ActiveComponent />
+            </div>
         </div>
     );
 };
