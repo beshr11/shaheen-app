@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { FileText, Printer, Bot, Edit, Loader2, History, Star, Search, Trash2, Download, Upload, MessageCircle, Send } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import DOMPurify from 'dompurify';
+import ErrorBoundary from './components/ErrorBoundary';
 // === قائمة المواد المحدثة ===
 const MATERIALS_LIST = [
     { id: 1, type: "قائم 3م", unit: "قطعة", defaultQuantity: 0 },
@@ -28,20 +29,36 @@ const MATERIALS_LIST = [
     { id: 22, type: "لوح بوندي 4م", unit: "قطعة", defaultQuantity: 0 }
 ];
 
-// === نظام الذاكرة والتعلم ===
+/**
+ * نظام إدارة الذاكرة والتعلم - يدير المحادثات والذاكرة المحلية
+ * يوفر إمكانيات البحث والتشابه والتعقيم الآمن للبيانات
+ */
 class MemoryManager {
     constructor() {
         this.storageKey = 'shaheen_ai_memory';
         this.maxConversations = 100;
     }
 
-    // تنظيف وتعقيم النصوص المدخلة
+    /**
+     * تنظيف وتعقيم النصوص المدخلة
+     * @param {string} input - النص المراد تعقيمه
+     * @returns {string} النص المعقم والمنظف
+     */
     sanitizeInput(input) {
         if (typeof input !== 'string') return '';
         // استخدم DOMPurify لتعقيم المدخلات
         return DOMPurify.sanitize(input).trim().substring(0, 1000);
     }
 
+    /**
+     * حفظ محادثة جديدة في الذاكرة المحلية
+     * @param {Object} conversationData - بيانات المحادثة
+     * @param {string} conversationData.userInput - مدخلات المستخدم
+     * @param {string} conversationData.docType - نوع المستند
+     * @param {string} conversationData.generatedContent - المحتوى المولد
+     * @param {Array} conversationData.tags - العلامات المرتبطة
+     * @returns {string|null} معرف المحادثة أو null في حالة الخطأ
+     */
     saveConversation(conversationData) {
         try {
             const conversations = this.getAllConversations();
@@ -162,30 +179,55 @@ class MemoryManager {
 
 // === مكونات المستندات ===
 
-// مكون حقل الإدخال
-const InputField = ({ label, value, onChange, type = "text", placeholder = "", required = false, maxLength = 500 }) => (
-    <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
-        <input
-            type={type}
-            value={value}
-            onChange={(e) => {
-                const sanitizedValue = e.target.value.substring(0, maxLength);
-                onChange(sanitizedValue);
-            }}
-            placeholder={placeholder}
-            required={required}
-            maxLength={maxLength}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-        {value && value.length > maxLength * 0.9 && (
-            <p className="text-xs text-gray-500 mt-1">{value.length}/{maxLength}</p>
-        )}
-    </div>
-);
+/**
+ * مكون حقل الإدخال المحسن مع التحقق من البيانات
+ * @param {Object} props - خصائص المكون
+ * @param {string} props.label - تسمية الحقل
+ * @param {string} props.value - قيمة الحقل
+ * @param {Function} props.onChange - دالة التغيير
+ * @param {string} props.type - نوع الإدخال
+ * @param {string} props.placeholder - النص التوضيحي
+ * @param {boolean} props.required - هل الحقل مطلوب
+ * @param {number} props.maxLength - الحد الأقصى للأحرف
+ */
+const InputField = React.memo(({ label, value, onChange, type = "text", placeholder = "", required = false, maxLength = 500 }) => {
+    const handleChange = useCallback((e) => {
+        const sanitizedValue = e.target.value.substring(0, maxLength);
+        onChange(sanitizedValue);
+    }, [onChange, maxLength]);
 
-// مكون الأزرار التنقل
-const NavButton = ({ text, icon, onClick, isActive }) => (
+    const showCharCount = useMemo(() => {
+        return value && value.length > maxLength * 0.9;
+    }, [value, maxLength]);
+
+    return (
+        <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+            <input
+                type={type}
+                value={value}
+                onChange={handleChange}
+                placeholder={placeholder}
+                required={required}
+                maxLength={maxLength}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {showCharCount && (
+                <p className="text-xs text-gray-500 mt-1">{value.length}/{maxLength}</p>
+            )}
+        </div>
+    );
+});
+
+/**
+ * مكون أزرار التنقل المحسن
+ * @param {Object} props - خصائص المكون
+ * @param {string} props.text - نص الزر
+ * @param {ReactNode} props.icon - أيقونة الزر
+ * @param {Function} props.onClick - دالة النقر
+ * @param {boolean} props.isActive - حالة الزر النشط
+ */
+const NavButton = React.memo(({ text, icon, onClick, isActive }) => (
     <button
         onClick={onClick}
         className={`flex items-center space-x-2 space-x-reverse px-6 py-3 rounded-lg font-medium transition-colors duration-200 ${
@@ -195,10 +237,13 @@ const NavButton = ({ text, icon, onClick, isActive }) => (
         {icon}
         <span>{text}</span>
     </button>
-);
+));
 
-// === محضر بدء إيجار الشدات المعدنية ===
-const RentalCommencementNote = () => {
+/**
+ * === محضر بدء إيجار الشدات المعدنية ===
+ * مكون لإنشاء وإدارة محضر بدء إيجار الشدات مع جميع التفاصيل اللازمة
+ */
+const RentalCommencementNote = React.memo(() => {
     const [formData, setFormData] = useState({
         lessor: 'شركة أعمال الشاهين للمقاولات',
         lessee: '',
@@ -220,7 +265,7 @@ const RentalCommencementNote = () => {
         }, {})
     });
 
-    const handleInputChange = (field, value) => {
+    const handleInputChange = useCallback((field, value) => {
         setFormData(prev => {
             const newData = { ...prev, [field]: value };
             
@@ -230,9 +275,9 @@ const RentalCommencementNote = () => {
             
             return newData;
         });
-    };
+    }, []);
 
-    const materials = MATERIALS_LIST;
+    const materials = useMemo(() => MATERIALS_LIST, []);
 
     return (
         <div className="printable-area bg-white p-8 rounded-lg shadow-lg max-w-4xl mx-auto">
@@ -407,7 +452,7 @@ const RentalCommencementNote = () => {
             </footer>
         </div>
     );
-};
+});
 
 // === مجموعة المستندات ===
 const DocumentSuite = () => {
@@ -504,7 +549,10 @@ const EnhancedAiAgentView = () => {
         addMessage(welcomeMessage, false);
     }, [docType]);
 
-    const handleSendMessage = async () => {
+    /**
+     * معالجة إرسال الرسائل مع التعقيم والتحقق من المدخلات
+     */
+    const handleSendMessage = useCallback(async () => {
         if (!currentInput.trim()) return;
         
         // تنظيف وتعقيم المدخلات
@@ -528,7 +576,7 @@ const EnhancedAiAgentView = () => {
             addMessage('حدث خطأ أثناء معالجة رسالتك. يرجى المحاولة مرة أخرى.', false);
             setIsLoading(false);
         }
-    };
+    }, [currentInput, conversationStage, memoryManager]);
 
     const handleInitialInput = async (userText) => {
         setIsLoading(true);
@@ -586,13 +634,16 @@ const EnhancedAiAgentView = () => {
         return questions;
     };
 
+    /**
+     * توليد المستند باستخدام Gemini AI مع معالجة شاملة للأخطاء
+     * @param {Object} answers - إجابات المستخدم على الأسئلة التوضيحية
+     */
     const generateDocument = async (answers) => {
         setIsLoading(true);
         setConversationStage('generating');
 
-        // --- استخدام مفتاح API (طريقة آمنة) ---
-        // يجب إنشاء ملف .env وإضافة REACT_APP_GEMINI_API_KEY=your_api_key_here
-        const apiKey = process.env.REACT_APP_GEMINI_API_KEY || "AIzaSyCBNAzNzCHKYzQhGwJbaQxHOht9aMZ5Bhc";
+        // --- استخدام مفتاح API من متغيرات البيئة (طريقة آمنة) ---
+        const apiKey = process.env.REACT_APP_GEMINI_API_KEY;
 
         if (!apiKey || apiKey === "your_gemini_api_key_here") {
             addMessage("خطأ: مفتاح Gemini API غير موجود أو غير صحيح. يرجى إعداد REACT_APP_GEMINI_API_KEY في ملف .env", false);
@@ -623,24 +674,55 @@ const EnhancedAiAgentView = () => {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error.message || 'حدث خطأ غير معروف من واجهة برمجة التطبيقات');
+                let errorMessage = 'حدث خطأ غير معروف من واجهة برمجة التطبيقات';
+                
+                if (response.status === 401) {
+                    errorMessage = 'مفتاح API غير صالح. يرجى التحقق من REACT_APP_GEMINI_API_KEY';
+                } else if (response.status === 429) {
+                    errorMessage = 'تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً';
+                } else if (response.status === 403) {
+                    errorMessage = 'غير مصرح بالوصول. يرجى التحقق من صلاحيات مفتاح API';
+                } else {
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.error?.message || errorMessage;
+                    } catch (e) {
+                        // إذا فشل في قراءة JSON، استخدم الرسالة الافتراضية
+                    }
+                }
+                
+                throw new Error(errorMessage);
             }
 
             const data = await response.json();
+            
+            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+                throw new Error('استجابة غير صالحة من واجهة برمجة التطبيقات');
+            }
+            
             const content = data.candidates[0].content.parts[0].text;
+            
+            if (!content || content.trim() === '') {
+                throw new Error('لم يتم إنشاء محتوى. يرجى المحاولة مرة أخرى');
+            }
             
             setGeneratedContent(content);
             setConversationStage('completed');
             addMessage('تم إنشاء المستند بنجاح! يمكنك مراجعته أدناه.', false);
             addMessage(content, false, 'document');
 
-            memoryManager.saveConversation({
-                docType,
-                userInput: Object.values(answers).join(' '),
-                generatedContent: content,
-                tags: extractTags(Object.values(answers).join(' '))
-            });
+            // حفظ المحادثة في الذاكرة
+            try {
+                memoryManager.saveConversation({
+                    docType,
+                    userInput: Object.values(answers).join(' '),
+                    generatedContent: content,
+                    tags: extractTags(Object.values(answers).join(' '))
+                });
+            } catch (saveError) {
+                console.error('خطأ في حفظ المحادثة:', saveError);
+                // لا نعرض رسالة خطأ للمستخدم لأن المستند تم إنشاؤه بنجاح
+            }
 
         } catch (error) {
             console.error('خطأ في إنشاء المستند:', error);
@@ -777,31 +859,36 @@ const EnhancedAiAgentView = () => {
     );
 };
 
-// === المكون الرئيسي للتطبيق ===
+/**
+ * === المكون الرئيسي للتطبيق ===
+ * يدير الواجهات المختلفة ويوفر ErrorBoundary للحماية من الأخطاء
+ */
 function App() {
     const [activeView, setActiveView] = useState('aiAgent');
 
     return (
-        <div dir="rtl" className="bg-gray-100 min-h-screen p-4 sm:p-8" style={{ fontFamily: "'Tajawal', sans-serif" }}>
-            <div className="max-w-6xl mx-auto mb-6 no-print">
-                <div className="bg-white p-2 rounded-lg shadow-md flex justify-center flex-wrap gap-2">
-                    <NavButton 
-                        text="منظومة المستندات" 
-                        icon={<FileText size={16} />} 
-                        onClick={() => setActiveView('documents')} 
-                        isActive={activeView === 'documents'} 
-                    />
-                    <NavButton 
-                        text="الوكيل الذكي" 
-                        icon={<Bot size={16} />} 
-                        onClick={() => setActiveView('aiAgent')} 
-                        isActive={activeView === 'aiAgent'} 
-                    />
+        <ErrorBoundary>
+            <div dir="rtl" className="bg-gray-100 min-h-screen p-4 sm:p-8" style={{ fontFamily: "'Tajawal', sans-serif" }}>
+                <div className="max-w-6xl mx-auto mb-6 no-print">
+                    <div className="bg-white p-2 rounded-lg shadow-md flex justify-center flex-wrap gap-2">
+                        <NavButton 
+                            text="منظومة المستندات" 
+                            icon={<FileText size={16} />} 
+                            onClick={() => setActiveView('documents')} 
+                            isActive={activeView === 'documents'} 
+                        />
+                        <NavButton 
+                            text="الوكيل الذكي" 
+                            icon={<Bot size={16} />} 
+                            onClick={() => setActiveView('aiAgent')} 
+                            isActive={activeView === 'aiAgent'} 
+                        />
+                    </div>
                 </div>
-            </div>
 
-            {activeView === 'documents' ? <DocumentSuite /> : <EnhancedAiAgentView />}
-        </div>
+                {activeView === 'documents' ? <DocumentSuite /> : <EnhancedAiAgentView />}
+            </div>
+        </ErrorBoundary>
     );
 }
 
